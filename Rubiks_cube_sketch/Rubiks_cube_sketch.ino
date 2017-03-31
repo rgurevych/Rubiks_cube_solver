@@ -53,9 +53,10 @@ byte minAngleMotor4 = 35;  // minimum limit fur turning
 byte maxAngleMotor4 = 98;  // maximum limit for turning
 
 //Flags
-volatile boolean leftButtonIsPressed = false;
-volatile boolean rightButtonIsPressed = false;
-volatile boolean operateFlag = false;
+//volatile boolean leftButtonIsPressed = false;
+//volatile boolean rightButtonIsPressed = false;
+volatile char pressedButton;
+volatile boolean operateFlag = true;
 
 
 //Data arrays and matrixes
@@ -66,12 +67,33 @@ String SideScanResult [9];
 String ScannedCube = "";
 String SolvedCube = "";
 
-//Initializing motors and LCD
+
+//Class that defines the button as object
+class Button {
+  public:
+    Button(byte pin, byte timeButton); 
+    boolean volatile flagPress;    // признак кнопка сейчас нажата
+    boolean volatile flagClick;    // признак кнопка была нажата (клик)
+    void filterAvarage();     // метод проверки состояние сигнала
+    void setPinTime(byte pin, byte timeButton); // метод установки номера вывода и времени (числа) подтверждения
+
+  private:
+    byte  _buttonCount;    // счетчик подтверждений стабильного состояния   
+    byte  _timeButton;      // время подтверждения состояния кнопки
+    byte  _pin;             // номер вывода
+};
+
+//Initializing motors, LCD and buttons
 Servo Motor1;
 Servo Motor2;
 Servo Motor3;
 Servo Motor4;
 LiquidCrystal_I2C lcd(0x3f,16,2);
+Button leftButton(leftButtonPin, 15);
+Button rightButton(rightButtonPin, 15); 
+
+//Reset function:
+void(* resetFunc) (void) = 0;
 
 
 //Setup method
@@ -86,6 +108,10 @@ void setup() {
   pinMode(S2, OUTPUT);
   pinMode(S3, OUTPUT);
   pinMode(scanSensor, INPUT);
+
+  //Initializing buttons
+  //leftButton.setPinTime(leftButtonPin, 15);
+  //rightButton.setPinTime(rightButtonPin, 15);
   //pinMode(leftButtonPin, INPUT_PULLUP);
   //pinMode(rightButtonPin, INPUT_PULLUP);
   
@@ -108,8 +134,8 @@ void setup() {
   delay(200);
 
   // Initialise interruption pins
-  attachInterrupt (0, leftButtonPressed, RISING);
-  attachInterrupt (1, rightButtonPressed, RISING);
+  //attachInterrupt (0, leftButtonPressed, RISING);
+  //attachInterrupt (1, rightButtonPressed, RISING);
 
   // Setting frequency-scaling to 20%
   digitalWrite(S0, HIGH);
@@ -119,25 +145,39 @@ void setup() {
   lcd.init();
   lcd.backlight();
   
-  //MsTimer2::set(500, timerInterupt);
+  MsTimer2::set(2, timerInterupt);
   //MsTimer2::start();    
 }
 
 //Main operation method
 void loop() {
   
-  operateOrNot();
+  char startOption = selectOption("Select mode", "Solve  Calibrate", "Solve", "       Calibrate");
+  if (startOption == 1) calibrationScan();
+  else {
+    char solvingMode = selectOption("Solving mode?", "Python   Arduino", "Python", "         Arduino");
+    if (solvingMode == 0) {
+      pythonSolveOperation();
+    }
+    else {
+      delay(5000);
+      //arduinoSolveOperation();
+    }
+  }
+  //solveOrCaliblate();
+  
+  //operateOrNot();
 
   //scanCube();
-  ScannedCube = "oobwwrbbboboybobwwyyybrrggwrrryyggogwrrggwooywggwoyrby";
+  //ScannedCube = "oobwwrbbboboybobwwyyybrrggwrrryyggogwrrggwooywggwoyrby";
 
-  writePortData();
-  delay(500);
+  //writePortData();
+  //delay(500);
   
-  readPortData();
+  //readPortData();
   
   //String movementString = "rLUdBBUUllFFllUUllFF";
-  assembleCube(SolvedCube);
+  //assembleCube(SolvedCube);
 
   //scanTopSide();
   //printSide(SideScanResult);
@@ -147,80 +187,149 @@ void loop() {
   
   //calibrationScan();
   
-  delay(5000);
+  delay(1000);
 
  
 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////METHODS FOR DESCRIBING OPERATION FLOWS///////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Method for general process of solving the cube via Python
+void pythonSolveOperation() {
+  attachInterrupt (0, leftButtonPressed, FALLING);
+  operateFlag = true;
+  scanCube();
+
+  detachInterrupt(0);
+}
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////METHODS FOR MANAGING INTERRUPTIONS AND OPERATION/////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+
+//Method for defining which button was pressed
+char defineButtonPressed() {
+  MsTimer2::start();
+  leftButton.flagClick = false;
+  rightButton.flagClick = false;
+  char result;
+  while (leftButton.flagClick == false && rightButton.flagClick == false);
+  MsTimer2::stop();
+  if (leftButton.flagClick == true ) {
+    leftButton.flagClick= false;
+    result = 0;
+    }
+  if (rightButton.flagClick == true ) {
+    rightButton.flagClick= false;
+    result = 1;
+    }
+   return result;
+}
+
+
+//Method from class Button to perform digital debouncing
+void Button::filterAvarage() {
+  if (flagPress != !digitalRead(_pin) ) {
+    if ( _buttonCount != 0 ) _buttonCount--;
+    }
+  else {
+    _buttonCount++;   
+    if ( _buttonCount >= _timeButton ) {
+      flagPress= !flagPress; 
+      _buttonCount= 0;
+      if ( flagPress == true ) flagClick= true;     
+     }    
+  }
+}
+
+
+//Button class constructor:
+Button::Button(byte pin, byte timeButton) {
+  _pin= pin;
+  _timeButton= timeButton;
+  pinMode(_pin, INPUT);  
+}
+
+
+//Method from class Button for setting the buttons
+void Button::setPinTime(byte pin, byte timeButton)  {
+  _pin= pin;
+  _timeButton= timeButton;
+  pinMode(_pin, INPUT);  
+}
+
+
 //Method for dealing with timer interruption
-void timerInterupt() {
-
-  Serial.print("Left_button= ");
-  Serial.print(leftButtonIsPressed);
-  Serial.print("  Right_button= ");
-  Serial.println(rightButtonIsPressed);
-  
+void  timerInterupt() {
+  leftButton.filterAvarage();
+  rightButton.filterAvarage(); 
 }
 
 
-//Interruption methods for detecting button press
+//Method for dealing with button interruptions
 void leftButtonPressed() {
-  leftButtonIsPressed = true;
-}
-
-void rightButtonPressed() {
-  rightButtonIsPressed = true;
+  operateFlag = false;
 }
 
 
-//Methods for checking if the buttons are pressed
-void waitForLeftButtonIsPressed() {
-  leftButtonIsPressed = false;
-  while (leftButtonIsPressed == false) {
-      delay(10);
-    }
-  leftButtonIsPressed = false;
-}
-
-void waitForRightButtonIsPressed() {
-  rightButtonIsPressed = false;
-  while (rightButtonIsPressed == false) {
-      delay(10);
-    }
-  rightButtonIsPressed = false;
+//Method for showing possible options and pressing the button
+int selectOption(String title, String options, String opt_1, String opt_2) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(title);
+  lcd.setCursor(0, 1);
+  lcd.print(options);
+  pressedButton = defineButtonPressed();
+  if (pressedButton == 0) {
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print(opt_1);
+    delay(500);
+  }
+  else if (pressedButton == 1) {
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print(opt_2);
+    delay(500);
+  }
+  return pressedButton;
 }
 
 //Method for starting or stopping operation
-void operateOrNot() {
-  if (leftButtonIsPressed == true) {
-    operateFlag = false;
-  }
+void resumeOrRestart() {
+  //detachInterrupt(0);
   if (operateFlag == false) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Operation paused");
-    lcd.setCursor(0, 1);
-    lcd.print("Press button...");
-    leftButtonIsPressed = false;
-    operateFlag = true;
-    while (leftButtonIsPressed == false) {
-      delay(10);
-    }
+    char continueOption = selectOption("Operation paused", "Resume   Restart", "Resume", "         Restart");
+  if (continueOption == 0) {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Resuming...");
-    delay(200);
-    leftButtonIsPressed = false;
     operateFlag = true;
+    //attachInterrupt (0, leftButtonPressed, RISING);
+    
+  }
+  else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Resetting...");
+    delay(1000);
+    resetFunc();
+  }
   }
   
 }
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////METHODS FOR COMMUNICATING VIA COM-PORT/////////////////////////////////
@@ -365,6 +474,7 @@ void writePortData() {
 
 //Method for scanning the cube
 void scanCube() {  
+  operateFlag = true;
   ScannedCube = "";
   //Print process on LCD
   lcd.clear();
@@ -475,6 +585,8 @@ void verifyScannedCube(String scannedCube) {
 
 //Method for caibration scan of one side - scan each item once and print the RGB values
 void calibrationScan() {
+  attachInterrupt (0, leftButtonPressed, FALLING);
+  operateFlag = true;
   turnMotor2(95, 5);
   delay(200);
   turnMotor4(35, 7);
@@ -804,7 +916,7 @@ void makeStep (String stepCode){
   }
   
   else {
-    operateFlag = false;
+    //operateFlag = false;
   }
 
 }
@@ -813,6 +925,8 @@ void makeStep (String stepCode){
 
 //Method for turning the Motor1 (the motor which rotates the cube)
 void turnMotor1(byte degree, byte motorSpeed) {
+  resumeOrRestart();
+  operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor1, maxAngleMotor1);
   if(motor_1_Position < limitedDegree) {
     for(int i = motor_1_Position; i <=limitedDegree ; i++) {
@@ -831,6 +945,8 @@ void turnMotor1(byte degree, byte motorSpeed) {
 
 //Method for turning the Motor2 (the motor which moves the carriage)
 void turnMotor2(byte degree, byte motorSpeed) {
+  resumeOrRestart();
+  operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor2, maxAngleMotor2);
   if(motor_2_Position < limitedDegree) {
     for(int i = motor_2_Position; i <=limitedDegree ; i++) {
@@ -849,6 +965,8 @@ void turnMotor2(byte degree, byte motorSpeed) {
 
 //Method for turning the Motor3 (the motor that moves the pusher)
 void turnMotor3(byte degree, byte motorSpeed) {
+  resumeOrRestart();
+  operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor3, maxAngleMotor3);
   if(motor_3_Position < limitedDegree) {
     for(int i = motor_3_Position; i <=limitedDegree ; i++) {
@@ -867,6 +985,8 @@ void turnMotor3(byte degree, byte motorSpeed) {
 
 //Method for turning the Motor4 (the motor that moves the color scanner)
 void turnMotor4(byte degree, byte motorSpeed) {
+  resumeOrRestart();
+  operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor4, maxAngleMotor4);
   if(motor_4_Position < limitedDegree) {
     for(int i = motor_4_Position; i <=limitedDegree ; i++) {
@@ -886,7 +1006,6 @@ void turnMotor4(byte degree, byte motorSpeed) {
 
 //Method for pushing the cube
 void push() {
-  operateOrNot();
   turnMotor2(105, 5);
   delay(200);
   turnMotor3(45, 2);
@@ -903,7 +1022,6 @@ void push() {
 
 //Method for turning the cube ClockWise
 void turnCubeCW() {
-  operateOrNot();
   turnMotor2(95, 5);
   delay(200);
   turnMotor1(5, 3);
@@ -914,7 +1032,6 @@ void turnCubeCW() {
 
 //Method for turning the cube CounterClockWise
 void turnCubeCCW() {
-  operateOrNot();
   turnMotor2(95, 5);
   delay(200);
   turnMotor1(171, 3);
@@ -925,7 +1042,6 @@ void turnCubeCCW() {
 
 //Method for turning the cube straight
 void turnCubeStraight() {
-  operateOrNot();
   turnMotor2(95, 5);
   delay(200);
   turnMotor1(88, 3);
