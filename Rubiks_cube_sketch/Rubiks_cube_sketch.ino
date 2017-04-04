@@ -12,6 +12,17 @@
 #define S3 12
 #define scanSensor 13
 
+//Default motors movements limits
+#define minAngleMotor1 0    // minimum limit fur turning
+#define maxAngleMotor1 179  // maximum limit for turning
+#define minAngleMotor2 95   // minimum limit fur turning
+#define maxAngleMotor2 135  // maximum limit for turning
+#define minAngleMotor3 45   // minimum limit fur turning
+#define maxAngleMotor3 95   // maximum limit for turning
+#define minAngleMotor4 35   // minimum limit fur turning
+#define maxAngleMotor4 98   // maximum limit for turning
+#define standardDelay 200   // standard delay for motor movement
+
 //Including libraries
 #include <Servo.h>
 #include <MsTimer2.h>
@@ -22,18 +33,18 @@
 //Defining variables
 
 //Initialize the variables for color frequences
-int frequency = 0;
-int f_RED = 0;
-int f_GREEN = 0;
-int f_BLUE = 0;
+byte frequency = 0;
+byte f_RED = 0;
+byte f_GREEN = 0;
+byte f_BLUE = 0;
 
 //Calibration matrix
 byte f[][6] = {{13, 19, 14, 25, 11, 16},         //white
                {12, 21, 18, 23, 22, 27},         //yellow
                {13, 19, 27, 37, 24, 33},         //orange
                {20, 25, 36, 42, 28, 35},         //red
-               {30, 35, 25, 33, 27, 36},         //green
-               {36, 44, 34, 43, 22, 28}          //blue
+               {30, 35, 25, 32, 27, 36},         //green
+               {34, 44, 33, 43, 20, 26}          //blue
                };
 
 //Default motors positions
@@ -42,31 +53,29 @@ byte motor_2_Position = 104;
 byte motor_3_Position = 89;
 byte motor_4_Position = 34;
 
-//Default motors movements limits
-byte minAngleMotor1 = 0;   // minimum limit fur turning
-byte maxAngleMotor1 = 179; // maximum limit for turning
-byte minAngleMotor2 = 95;  // minimum limit fur turning
-byte maxAngleMotor2 = 135; // maximum limit for turning
-byte minAngleMotor3 = 45;  // minimum limit fur turning
-byte maxAngleMotor3 = 95;  // maximum limit for turning
-byte minAngleMotor4 = 35;  // minimum limit fur turning
-byte maxAngleMotor4 = 98;  // maximum limit for turning
 
 //Flags
-//volatile boolean leftButtonIsPressed = false;
-//volatile boolean rightButtonIsPressed = false;
 volatile char pressedButton;
+volatile byte selectedButton;
 volatile boolean operateFlag = true;
+boolean serialOutput = false;
 
 
 //Data arrays and matrixes
 //Arrays for color scanning
-byte Motor_1_ScanAngles [] = {44, 85, 120, 4, 4, 168, 134, 96, 58};
-byte Motor_4_ScanAngles [] = {71, 74, 70, 74, 82, 73, 94, 90, 94};
-String SideScanResult [9];
-String ScannedCube = "";
+byte Motor_1_ScanAngles [9] = {44, 85, 120, 4, 4, 168, 134, 96, 58};
+byte Motor_4_ScanAngles [9] = {71, 74, 70, 74, 82, 73, 94, 90, 94};
+//Arrays for side and cube scanning
+char SideScanResult [10];
+char ScannedCube [55];
 String SolvedCube = "";
+//Other global variables
+byte cubeCounter;
+char string1LCD [17];
+char string2LCD [17];
 
+//Constants
+const char defaultLCDstring [17] = "                ";
 
 //Class that defines the button as object
 class Button {
@@ -99,22 +108,12 @@ void(* resetFunc) (void) = 0;
 //Setup method
 void setup() {
   // Initializing pins modes
-  pinMode(A0, INPUT);
-  pinMode(A1, INPUT);
-  pinMode(A2, INPUT);
-  pinMode(A3, INPUT);
   pinMode(S0, OUTPUT);
   pinMode(S1, OUTPUT);
   pinMode(S2, OUTPUT);
   pinMode(S3, OUTPUT);
   pinMode(scanSensor, INPUT);
 
-  //Initializing buttons
-  //leftButton.setPinTime(leftButtonPin, 15);
-  //rightButton.setPinTime(rightButtonPin, 15);
-  //pinMode(leftButtonPin, INPUT_PULLUP);
-  //pinMode(rightButtonPin, INPUT_PULLUP);
-  
   //Attaching the motors
   Motor1.attach(rotateMotorPin);
   Motor2.attach(carriageMotorPin);
@@ -125,13 +124,13 @@ void setup() {
   Serial.begin(9600);
   
   turnMotor1(89, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor3(90, 2);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor4(35, 7);
-  delay(200);
+  delay(standardDelay);
 
   // Initialise interruption pins
   //attachInterrupt (0, leftButtonPressed, RISING);
@@ -152,25 +151,15 @@ void setup() {
 //Main operation method
 void loop() {
   
-  char startOption = selectOption("Select mode", "Solve  Calibrate", "Solve", "       Calibrate");
-  if (startOption == 1) calibrationScan();
-  else {
-    char solvingMode = selectOption("Solving mode?", "Python   Arduino", "Python", "         Arduino");
-    if (solvingMode == 0) {
-      pythonSolveOperation();
-    }
-    else {
-      delay(5000);
-      //arduinoSolveOperation();
-    }
-  }
+  normalFlow();
+  
   //solveOrCaliblate();
   
   //operateOrNot();
 
   //scanCube();
-  //ScannedCube = "oobwwrbbboboybobwwyyybrrggwrrryyggogwrrggwooywggwoyrby";
-
+  
+  //verifyScannedCube();
   //writePortData();
   //delay(500);
   
@@ -197,12 +186,42 @@ void loop() {
 /////////////////////////////////////////////////METHODS FOR DESCRIBING OPERATION FLOWS///////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//Method for normal flow operation
+void normalFlow() {
+  selectedButton = selectOption(F("Select mode"), F("Solve  Calibrate"), F("Solve"), F("       Calibrate"));
+  if (selectedButton == 1) calibrateOptions();
+  else solvingOptions();
+}
+
+
+//Method for selecting the scanning option
+void calibrateOptions() {
+  selectedButton = selectOption(F("Calibrate"), F("Side        Cube"), F("Side"), F("            Cube"));
+  if (selectedButton == 0) {
+    scanNewSide:
+    serialOutput = true;
+    calibrationScan();
+    serialOutput = false;
+    selectedButton = selectOption(F("Scan other side?"), F(" Yes        Back"), F(" Yes"), F("           Back"));
+    if (selectedButton == 0) goto scanNewSide;
+    else normalFlow();      //arduinoSolveOperation();
+  }
+  else calibrationScan();
+}
+
+
+//Method for selecting the solving mode
+void solvingOptions() {
+  selectedButton = selectOption(F("Solving mode?"), F("Python   Arduino"), F("Python"), F("         Arduino"));
+  if (selectedButton == 0) pythonSolveOperation();
+  else delay(5000);      //arduinoSolveOperation();
+}
+
+
 //Method for general process of solving the cube via Python
 void pythonSolveOperation() {
-  attachInterrupt (0, leftButtonPressed, FALLING);
   operateFlag = true;
   scanCube();
-
   detachInterrupt(0);
 }
 
@@ -213,7 +232,6 @@ void pythonSolveOperation() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////METHODS FOR MANAGING INTERRUPTIONS AND OPERATION/////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 
 //Method for defining which button was pressed
@@ -259,14 +277,14 @@ Button::Button(byte pin, byte timeButton) {
   pinMode(_pin, INPUT);  
 }
 
-
+/*
 //Method from class Button for setting the buttons
 void Button::setPinTime(byte pin, byte timeButton)  {
   _pin= pin;
   _timeButton= timeButton;
   pinMode(_pin, INPUT);  
 }
-
+*/
 
 //Method for dealing with timer interruption
 void  timerInterupt() {
@@ -282,7 +300,7 @@ void leftButtonPressed() {
 
 
 //Method for showing possible options and pressing the button
-int selectOption(String title, String options, String opt_1, String opt_2) {
+byte selectOption(String title, String options, String opt_1, String opt_2) {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(title);
@@ -308,11 +326,9 @@ int selectOption(String title, String options, String opt_1, String opt_2) {
 void resumeOrRestart() {
   //detachInterrupt(0);
   if (operateFlag == false) {
-    char continueOption = selectOption("Operation paused", "Resume   Restart", "Resume", "         Restart");
-  if (continueOption == 0) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Resuming...");
+    selectedButton = selectOption(F("Operation paused"), F("Resume     Reset"), F("Resume"), F("           Reset"));
+  if (selectedButton == 0) {
+    printLCD();
     operateFlag = true;
     //attachInterrupt (0, leftButtonPressed, RISING);
     
@@ -320,7 +336,7 @@ void resumeOrRestart() {
   else {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Resetting...");
+    lcd.print(F("Resetting..."));
     delay(1000);
     resetFunc();
   }
@@ -328,7 +344,38 @@ void resumeOrRestart() {
   
 }
 
+//Method for saving the current string displayed on LCD
+void storeLCD(String text, byte row) {
+  if (row == 0) {
+    for (byte i=0; i<16; i++) {
+      string1LCD[i] = defaultLCDstring[i];
+      string1LCD[i] = text[i];
+      }
+  }
+  else if (row == 1) {
+    for (byte i=0; i<16; i++) {
+      string2LCD[i] = defaultLCDstring[i];
+      string2LCD[i] = text[i];
+      }
+  }
+  else if (row == 2) {
+    for (byte i=0; i<=sizeof(text); i++) {
+      if (text[i] != ' ') {
+        string2LCD[i] = text[i];
+        }
+      }
+  }
+  printLCD();
+}
 
+//Method for printing saved strings to LCD
+void printLCD() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(string1LCD);
+  lcd.setCursor(0, 1);
+  lcd.print(string2LCD);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -339,11 +386,11 @@ void resumeOrRestart() {
 void readPortData() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Waiting for data");
+  lcd.print(F("Waiting for data"));
   lcd.setCursor(0, 1);
-  lcd.print("from Python...");
+  lcd.print(F("from Python..."));
   String DataLength = "";
-  long PortTimeout = millis();
+  int PortTimeout = millis();
   String PortReadyFlag = "";
   do {
     PortReadyFlag = "";
@@ -356,7 +403,7 @@ void readPortData() {
   
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Receiving data..");
+  lcd.print(F("Receiving data.."));
   delay(100);
   
   PortTimeout = millis();
@@ -371,7 +418,7 @@ void readPortData() {
   
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Verifying data..");
+  lcd.print(F("Verifying data.."));
   delay(100);
 
   PortTimeout = millis();
@@ -387,14 +434,14 @@ void readPortData() {
   if (DataLength.toInt() == SolvedCube.length()) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Data received");
+    lcd.print(F("Data received"));
     lcd.setCursor(0, 1);
-    lcd.print("successfully");
+    lcd.print(F("successfully"));
     }
   else {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Error, try again");
+    lcd.print(F("Error, try again"));
     }
     
   PortTimeout = millis();
@@ -402,9 +449,9 @@ void readPortData() {
     if ((millis() - PortTimeout) >= 10000) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Timeout error");
+    lcd.print(F("Timeout error"));
     lcd.setCursor(0, 1);
-    lcd.print("try again");
+    lcd.print(F("try again"));
     } 
 }
 
@@ -412,13 +459,13 @@ void readPortData() {
 void writePortData() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Waiting for");
+  lcd.print(F("Waiting for"));
   lcd.setCursor(0, 1);
-  lcd.print("connection...");
+  lcd.print(F("connection..."));
   Serial.print("ready");
   
   String PortReadyFlag = "";
-  long PortTimeout = millis();
+  int PortTimeout = millis();
   do {
     PortReadyFlag = "";
     while (Serial.available()) {
@@ -431,7 +478,7 @@ void writePortData() {
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Sending data...");
+  lcd.print(F("Sending data..."));
   delay(100);
   Serial.print(ScannedCube);
     
@@ -449,23 +496,23 @@ void writePortData() {
   if (PortReadyFlag == "ok") {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Data sent");
+    lcd.print(F("Data sent"));
     lcd.setCursor(0, 1);
-    lcd.print("successfully");
+    lcd.print(F("successfully"));
     }
   else {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Error, try again");
+    lcd.print(F("Error, try again"));
     } 
   PortTimeout = millis();
   Timeout:
     if ((millis() - PortTimeout) >= 10000) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Timeout error");
+    lcd.print(F("Timeout error"));
     lcd.setCursor(0, 1);
-    lcd.print("try again");
+    lcd.print(F("try again"));
     }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -475,41 +522,29 @@ void writePortData() {
 //Method for scanning the cube
 void scanCube() {  
   operateFlag = true;
-  ScannedCube = "";
+  cubeCounter = 0;
   //Print process on LCD
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Scanning cube");
-  lcd.setCursor(0, 1);
-  lcd.print("Side      of 6");
-  lcd.setCursor(5, 1);
-  lcd.print("1(U)");
-  
+  storeLCD(F("Scanning cube"), 0);
+  storeLCD(F("Side 1(U) of 6"), 1);
+    
   scanTopSide();
-  addSideToScanCubeString(SideScanResult);
   
   push();
   turnCubeCW();
   push();
   turnCubeStraight();
-  lcd.setCursor(5, 1);
-  lcd.print("2(R)");
+  storeLCD(F("     2(R)"), 2);
   scanTopSide();
-  addSideToScanCubeString(SideScanResult);
   
   turnCubeCCW();
   push();
   turnCubeStraight();
-  lcd.setCursor(5, 1);
-  lcd.print("3(F)");
+  storeLCD(F("     3(F)"), 2);
   scanTopSide();
-  addSideToScanCubeString(SideScanResult);
   
   push();
-  lcd.setCursor(5, 1);
-  lcd.print("4(D)");
+  storeLCD(F("     4(D)"), 2);
   scanTopSide();
-  addSideToScanCubeString(SideScanResult);
 
   push();
   push();
@@ -517,18 +552,14 @@ void scanCube() {
   turnCubeCCW();
   push();
   turnCubeStraight();
-  lcd.setCursor(5, 1);
-  lcd.print("5(L)");
+  storeLCD(F("     5(L)"), 2);
   scanTopSide();
-  addSideToScanCubeString(SideScanResult);
 
   turnCubeCCW();
   push();
   turnCubeStraight();
-  lcd.setCursor(5, 1);
-  lcd.print("6(B)");
+  storeLCD(F("     6(B)"), 2);
   scanTopSide();
-  addSideToScanCubeString(SideScanResult);
 
   turnCubeCW();
   push();
@@ -538,12 +569,30 @@ void scanCube() {
   push();
   push();
 
-  verifyScannedCube(ScannedCube);
+  verifyScannedCube();
+  Serial.println(ScannedCube); /////////////////////////////////////////////////////////////////////////////////
   
 }
 
+
+//Method for vefirying the scanned cube side
+void verifyScannedSide() {
+  boolean sideOK = true;
+  for (byte i=0; i<9; i++) {
+    if (SideScanResult[i] == 'X') sideOK = false;
+  }
+  if (sideOK == false) {
+    selectedButton = selectOption(F("Side scan error"), F("Repeat   Restart"), F("Repeat"), F("         Restart"));
+  if (selectedButton == 0) scanTopSide();
+  else normalFlow();
+  }
+  else addSideToScanCubeString();
+}
+
+
+
 //Method for verifying whether the cube was scanned correctly
-void verifyScannedCube(String scannedCube) {
+void verifyScannedCube() {
   boolean scanErrorFlag = false;
   byte w_count = 0;
   byte y_count = 0;
@@ -551,55 +600,57 @@ void verifyScannedCube(String scannedCube) {
   byte r_count = 0;
   byte g_count = 0;
   byte b_count = 0;
-  if (scannedCube.length() != 54) {scanErrorFlag = true;}
-  else {
-    for (byte i=0; i<54; i++) {
-      if (String(scannedCube[i]) == "w") {w_count++;}
-      else if (String(scannedCube[i]) == "y") {y_count++;}
-      else if (String(scannedCube[i]) == "o") {o_count++;}
-      else if (String(scannedCube[i]) == "r") {r_count++;}
-      else if (String(scannedCube[i]) == "g") {g_count++;}
-      else if (String(scannedCube[i]) == "b") {b_count++;}
-      else {scanErrorFlag = true;}
-    }
-    if ((w_count != 9) || (y_count != 9) || (o_count != 9) || (r_count != 9) || (g_count != 9) || (b_count != 9)) {scanErrorFlag = true;}
+  for (byte i=0; i<54; i++) {
+    if (ScannedCube[i] == 'w') {w_count++;}
+    else if (ScannedCube[i] == 'y') {y_count++;}
+    else if (ScannedCube[i] == 'o') {o_count++;}
+    else if (ScannedCube[i] == 'r') {r_count++;}
+    else if (ScannedCube[i] == 'g') {g_count++;}
+    else if (ScannedCube[i] == 'b') {b_count++;}
+    else {scanErrorFlag = true;}
   }
-
+  
+  if ((w_count != 9) || (y_count != 9) || (o_count != 9) || (r_count != 9) || (g_count != 9) || (b_count != 9)) {scanErrorFlag = true;}
+  
+  Serial.println(ScannedCube);
+  
   if (scanErrorFlag == true) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Scan error");
-    lcd.setCursor(0, 1);
-    lcd.print("Repeat scan");
-  }
-  else {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Scan completed");
-    lcd.setCursor(0, 1);
-    lcd.print("successfully");
-    Serial.println(ScannedCube);
+    selectedButton = selectOption(F("Cube scan error"), F("Rescan   Restart"), F("Rescan"), F("         Restart"));
+    if (selectedButton == 0) scanCube();
+    else normalFlow();
   }
   
 }
 
 //Method for caibration scan of one side - scan each item once and print the RGB values
 void calibrationScan() {
-  attachInterrupt (0, leftButtonPressed, FALLING);
+  attachInterrupt (0, leftButtonPressed, RISING);
   operateFlag = true;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(F("Calibrating..."));
   turnMotor2(95, 5);
   delay(200);
   turnMotor4(35, 7);
   delay(200);
-  for (int i = 0; i<9; i++) {
+  for (byte i = 0; i<9; i++) {
     turnMotor1(Motor_1_ScanAngles[i], 4);
     turnMotor4(Motor_4_ScanAngles[i], 7);
-    delay(200);
-    calibrate();
-    delay(200);
+    delay(100);
+    scan_item();
+    delay(100);
+    if (serialOutput == true) {
+      Serial.print(F("R= "));//printing name
+      Serial.print(f_RED);//printing RED color frequency
+      Serial.print(F("  G= "));
+      Serial.print(f_GREEN);//printing RED color frequency
+      Serial.print(F("  B= "));
+      Serial.println(f_BLUE);
+    }
   }
   turnMotor4(35, 7);
   turnCubeStraight();
+  detachInterrupt (0);
 }
 
 
@@ -609,7 +660,9 @@ void scanTopSide() {
   delay(200);
   turnMotor4(35, 7);
   delay(200);
-  for (int i = 0; i<9; i++) {
+  attachInterrupt (0, leftButtonPressed, RISING);
+  operateFlag = true;
+  for (byte i = 0; i<9; i++) {
     turnMotor1(Motor_1_ScanAngles[i], 4);
     delay(50);
     turnMotor4(Motor_4_ScanAngles[i], 5);
@@ -619,15 +672,18 @@ void scanTopSide() {
   }
   turnMotor4(35, 7);
   turnCubeStraight();
+  detachInterrupt (0);
+  verifyScannedSide();
 }
 
 
 //Method to add the scanned side to the common scanCube variable
-void addSideToScanCubeString(String cubeSide[9]) {
+void addSideToScanCubeString() {
   for (byte i=0; i<9; i++) {
-    ScannedCube += SideScanResult[i];
+    ScannedCube[cubeCounter] = SideScanResult[i];
+    cubeCounter ++;
   }
-  //Serial.println(ScannedCube);
+  Serial.println(ScannedCube); ////////////////////////////////////////////////////////////////////////
 }
 
 
@@ -656,40 +712,40 @@ void scan_item() {
 
 
 //Function for detecting color (All devices and Arduino connected to power supply)
-String defineColor(int r, int g, int b) {
+char defineColor(byte r, byte g, byte b) {
   if(r>=f[0][0] && r<=f[0][1] && g>=f[0][2] && g<=f[0][3] && b>=f[0][4] && b<=f[0][5]){
-    return "w";
+    return 'w';
   }
   else if(r>=f[1][0] && r<=f[1][1] && g>=f[1][2] && g<=f[1][3] && b>=f[1][4] && b<=f[1][5]){
-    return "y";
+    return 'y';
   }
   else if(r>=f[2][0] && r<=f[2][1] && g>=f[2][2] && g<=f[2][3] && b>=f[2][4] && b<=f[2][5]){
-    return "o";
+    return 'o';
   }
   else if(r>=f[3][0] && r<=f[3][1] && g>=f[3][2] && g<=f[3][3] && b>=f[3][4] && b<=f[3][5]){
-    return "r";
+    return 'r';
   }
   else if(r>=f[4][0] && r<=f[4][1] && g>=f[4][2] && g<=f[4][3] && b>=f[4][4] && b<=f[4][5]){
-    return "g";
+    return 'g';
   }
   else if(r>=f[5][0] && r<=f[5][1] && g>=f[5][2] && g<=f[5][3] && b>=f[5][4] && b<=f[5][5]){
-    return "b";
+    return 'b';
   }
   else {
-    return "undefined";
+    return 'X';
   }
 }
 
 
 //Function that repeats scanning up to 3 times if the color was not defined
-String scanResult(){
-  String color = " ";
-  int wrongScan = 0;
+char scanResult(){
+  char color;
+  byte wrongScan = 0;
   do{
     scan_item();
     color = defineColor(f_RED, f_GREEN, f_BLUE);
     wrongScan++ ;
-    if (color != "undefined") { 
+    if (color != 'X') { 
       break;
       }
   } while (wrongScan < 10);
@@ -697,7 +753,7 @@ String scanResult(){
 }
 
 //Supportive function for device calibration
-void calibrate() {
+/*void calibrate() {
   // Setting red filtered photodiodes to be read
   digitalWrite(S2,LOW);
   digitalWrite(S3,LOW);
@@ -728,7 +784,7 @@ void calibrate() {
   Serial.print(frequency);//printing BLUE color frequency
   Serial.println("  ");
   delay(100);
-}
+}*/
 
 void printSide(String side[]) {
   byte e = 0; 
@@ -748,14 +804,15 @@ void printSide(String side[]) {
 
 //Method for assembling cube based on the steps string
 void assembleCube(String movementString) {
-for (byte i=0; i<=movementString.length(); i++) {
+  byte solutionLength = movementString.length();
+  for (byte i=0; i<=solutionLength; i++) {
     String stepValue = String(movementString[i]);
     Serial.println(stepValue);
 
     //Print process on LCD
-    lcd.clear();
+    /*lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Assembling cube");
+    lcd.print(F("Assembling cube"));
     lcd.setCursor(0, 1);
     lcd.print("Step   ( ) of ");
     lcd.setCursor(5, 1);
@@ -763,15 +820,20 @@ for (byte i=0; i<=movementString.length(); i++) {
     lcd.setCursor(14, 1);
     lcd.print(movementString.length());
     lcd.setCursor(8, 1);
-    lcd.print(stepValue);
-        
+    lcd.print(stepValue);*/
+    
+    storeLCD(F("Assembling cube"), 0);
+    storeLCD(("Step   of ") + String(solutionLength), 1);
+    storeLCD(("     ") + String(i+1), 2);
+       
     makeStep(stepValue);
   }
+  
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Cube assembled");
+  lcd.print(F("Cube assembled"));
   lcd.setCursor(0, 1);
-  lcd.print("successfully!");
+  lcd.print(F("successfully!"));
 }
 
 //Method for implementing one defined step
@@ -921,7 +983,9 @@ void makeStep (String stepCode){
 
 }
 
-/////////////////////////////////////////////////ELEMENTARY MOTORS MOVEMENTS/////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////ELEMENTARY MOTORS MOVEMENTS//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //Method for turning the Motor1 (the motor which rotates the cube)
 void turnMotor1(byte degree, byte motorSpeed) {
@@ -929,13 +993,13 @@ void turnMotor1(byte degree, byte motorSpeed) {
   operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor1, maxAngleMotor1);
   if(motor_1_Position < limitedDegree) {
-    for(int i = motor_1_Position; i <=limitedDegree ; i++) {
+    for(byte i = motor_1_Position; i <=limitedDegree ; i++) {
     Motor1.write(i);
     delay(motorSpeed);
     }
   }
   else if (motor_1_Position > limitedDegree) {
-    for(int i = motor_1_Position; i >= limitedDegree; i--) {
+    for(byte i = motor_1_Position; i >= limitedDegree; i--) {
     Motor1.write(i);
     delay(motorSpeed);
     }
@@ -943,19 +1007,20 @@ void turnMotor1(byte degree, byte motorSpeed) {
   motor_1_Position = limitedDegree;
 }
 
+
 //Method for turning the Motor2 (the motor which moves the carriage)
 void turnMotor2(byte degree, byte motorSpeed) {
   resumeOrRestart();
   operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor2, maxAngleMotor2);
   if(motor_2_Position < limitedDegree) {
-    for(int i = motor_2_Position; i <=limitedDegree ; i++) {
+    for(byte i = motor_2_Position; i <=limitedDegree ; i++) {
     Motor2.write(i);
     delay(motorSpeed);
     }
   }
   else if (motor_2_Position > limitedDegree) {
-    for(int i = motor_2_Position; i >= limitedDegree; i--) {
+    for(byte i = motor_2_Position; i >= limitedDegree; i--) {
     Motor2.write(i);
     delay(motorSpeed);
     }
@@ -963,19 +1028,20 @@ void turnMotor2(byte degree, byte motorSpeed) {
   motor_2_Position = limitedDegree;
 }
 
+
 //Method for turning the Motor3 (the motor that moves the pusher)
 void turnMotor3(byte degree, byte motorSpeed) {
   resumeOrRestart();
   operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor3, maxAngleMotor3);
   if(motor_3_Position < limitedDegree) {
-    for(int i = motor_3_Position; i <=limitedDegree ; i++) {
+    for(byte i = motor_3_Position; i <=limitedDegree ; i++) {
     Motor3.write(i);
     delay(motorSpeed);
     }
   }
   else if (motor_3_Position > limitedDegree) {
-    for(int i = motor_3_Position; i >= limitedDegree; i--) {
+    for(byte i = motor_3_Position; i >= limitedDegree; i--) {
     Motor3.write(i);
     delay(motorSpeed);
     }
@@ -983,19 +1049,20 @@ void turnMotor3(byte degree, byte motorSpeed) {
   motor_3_Position = limitedDegree;
 }
 
+
 //Method for turning the Motor4 (the motor that moves the color scanner)
 void turnMotor4(byte degree, byte motorSpeed) {
   resumeOrRestart();
   operateFlag = true;
   byte limitedDegree = constrain(degree, minAngleMotor4, maxAngleMotor4);
   if(motor_4_Position < limitedDegree) {
-    for(int i = motor_4_Position; i <=limitedDegree ; i++) {
+    for(byte i = motor_4_Position; i <=limitedDegree ; i++) {
     Motor4.write(i);
     delay(motorSpeed);
     }
   }
   else if (motor_4_Position > limitedDegree) {
-    for(int i = motor_4_Position; i >= limitedDegree; i--) {
+    for(byte i = motor_4_Position; i >= limitedDegree; i--) {
     Motor4.write(i);
     delay(motorSpeed);
     }
@@ -1007,79 +1074,85 @@ void turnMotor4(byte degree, byte motorSpeed) {
 //Method for pushing the cube
 void push() {
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor3(45, 2);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(118, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor3(95, 2);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor3(90, 2);
-  delay(200);
+  delay(standardDelay);
 }
+
 
 //Method for turning the cube ClockWise
 void turnCubeCW() {
   turnMotor2(95, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(5, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
 }
+
 
 //Method for turning the cube CounterClockWise
 void turnCubeCCW() {
   turnMotor2(95, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(171, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
 }
+
 
 //Method for turning the cube straight
 void turnCubeStraight() {
   turnMotor2(95, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(88, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
 }
+
 
 //Method for turning the bottom layer ClockWise
 void downCW() {
   turnCubeCW();
   turnMotor3(45, 2);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(135, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(95, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(88, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor3(90, 2);
-  delay(200);
+  delay(standardDelay);
 }
+
 
 //Method for turning the bottom layer CounterClockWise
 void downCCW() {
   turnCubeCCW();
   turnMotor3(45, 2);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(135, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(80, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor1(88, 3);
-  delay(200);
+  delay(standardDelay);
   turnMotor2(105, 5);
-  delay(200);
+  delay(standardDelay);
   turnMotor3(90, 2);
-  delay(200);
+  delay(standardDelay);
 }
+
