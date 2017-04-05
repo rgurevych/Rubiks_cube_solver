@@ -67,7 +67,7 @@ byte Motor_1_ScanAngles [9] = {44, 85, 120, 4, 4, 168, 134, 96, 58};
 byte Motor_4_ScanAngles [9] = {71, 74, 70, 74, 82, 73, 94, 90, 94};
 //Arrays for side and cube scanning
 char SideScanResult [10];
-char ScannedCube [55];
+char ScannedCube [55];               // = "woybogwrybwbbwggygoyoogoryryowbrgyrwbybbyggwgrwrrbrowo";
 String SolvedCube = "";
 //Other global variables
 byte cubeCounter;
@@ -75,21 +75,21 @@ char string1LCD [17];
 char string2LCD [17];
 
 //Constants
-const char defaultLCDstring [17] = "                ";
+
 
 //Class that defines the button as object
 class Button {
   public:
     Button(byte pin, byte timeButton); 
-    boolean volatile flagPress;    // признак кнопка сейчас нажата
-    boolean volatile flagClick;    // признак кнопка была нажата (клик)
-    void filterAvarage();     // метод проверки состояние сигнала
-    void setPinTime(byte pin, byte timeButton); // метод установки номера вывода и времени (числа) подтверждения
+    boolean volatile flagPress;    
+    boolean volatile flagClick;    
+    void filterAvarage();     
+    void setPinTime(byte pin, byte timeButton); 
 
   private:
-    byte  _buttonCount;    // счетчик подтверждений стабильного состояния   
-    byte  _timeButton;      // время подтверждения состояния кнопки
-    byte  _pin;             // номер вывода
+    byte  _buttonCount;    
+    byte  _timeButton;      
+    byte  _pin;             
 };
 
 //Initializing motors, LCD and buttons
@@ -221,8 +221,10 @@ void solvingOptions() {
 //Method for general process of solving the cube via Python
 void pythonSolveOperation() {
   operateFlag = true;
-  scanCube();
+  scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   detachInterrupt(0);
+  writePortData();
+  readPortData();
 }
 
 
@@ -277,14 +279,6 @@ Button::Button(byte pin, byte timeButton) {
   pinMode(_pin, INPUT);  
 }
 
-/*
-//Method from class Button for setting the buttons
-void Button::setPinTime(byte pin, byte timeButton)  {
-  _pin= pin;
-  _timeButton= timeButton;
-  pinMode(_pin, INPUT);  
-}
-*/
 
 //Method for dealing with timer interruption
 void  timerInterupt() {
@@ -348,13 +342,13 @@ void resumeOrRestart() {
 void storeLCD(String text, byte row) {
   if (row == 0) {
     for (byte i=0; i<16; i++) {
-      string1LCD[i] = defaultLCDstring[i];
+      string1LCD[i] = ' ';
       string1LCD[i] = text[i];
       }
   }
   else if (row == 1) {
     for (byte i=0; i<16; i++) {
-      string2LCD[i] = defaultLCDstring[i];
+      string2LCD[i] = ' ';
       string2LCD[i] = text[i];
       }
   }
@@ -384,27 +378,36 @@ void printLCD() {
 
 //Method for reading data from COM-port (the string with solution from Python script)
 void readPortData() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(F("Waiting for data"));
-  lcd.setCursor(0, 1);
-  lcd.print(F("from Python..."));
-  String DataLength = "";
-  int PortTimeout = millis();
-  String PortReadyFlag = "";
-  do {
-    PortReadyFlag = "";
-    while (Serial.available()) {
-      PortReadyFlag += char(Serial.read());
-    }
-    delay(100);
-  } while ((PortReadyFlag != "ready") && (millis() - PortTimeout < 10000));
-  if ((millis() - PortTimeout) >= 10000) {goto Timeout;}
+  char PortReadyFlag;
+  boolean connectionError;
+  volatile long PortTimeout;
   
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(F("Receiving data.."));
-  delay(100);
+  resendData:
+  
+  storeLCD(F("Waiting for data"), 0);
+  storeLCD(F("from Python..."), 1);
+
+  PortReadyFlag = '0';
+  connectionError = false;
+  
+  PortTimeout = millis();
+  do {
+    PortReadyFlag = '0';
+    PortReadyFlag = char(Serial.read());
+    while(Serial.available()) Serial.read();
+    delay(100);
+    } while ((PortReadyFlag != '!') && (millis() - PortTimeout < 10000));
+
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+    
+  delay(300);
+  Serial.print('!');
+
+  storeLCD(F("Receiving data.."), 0);
+  storeLCD(F(""), 1);
   
   PortTimeout = millis();
   do {
@@ -414,106 +417,110 @@ void readPortData() {
     }
     delay(100);
   } while ((SolvedCube.length() == 0) && (millis() - PortTimeout < 10000));
-  if ((millis() - PortTimeout) >= 10000) {goto Timeout;}
   
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(F("Verifying data.."));
-  delay(100);
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+
+  storeLCD(F("Verifying data.."), 0);
+  
+  if (SolvedCube.length() < 10) Serial.print('0');
+  Serial.print(SolvedCube.length());
 
   PortTimeout = millis();
   do {
-      DataLength = "";
-      while (Serial.available()) {
-      DataLength += char(Serial.read());
-    } 
-    delay(100);
-  } while ((DataLength.length() == 0) && (millis() - PortTimeout < 10000));
-  if ((millis() - PortTimeout) >= 10000) {goto Timeout;}
+      PortReadyFlag = '0';
+      PortReadyFlag = char(Serial.read());
+      while(Serial.available()) Serial.read();
+      delay(100);
+  } while(!((PortReadyFlag == '+')||(PortReadyFlag == 'x')) && (millis() - PortTimeout < 10000));
+
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
     
-  if (DataLength.toInt() == SolvedCube.length()) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Data received"));
-    lcd.setCursor(0, 1);
-    lcd.print(F("successfully"));
+  if (PortReadyFlag == '+') {
+    storeLCD(F("Data received"), 0);
+    storeLCD(F("successfully"), 1);
     }
   else {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Error, try again"));
-    }
-    
-  PortTimeout = millis();
-  Timeout:
-    if ((millis() - PortTimeout) >= 10000) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Timeout error"));
-    lcd.setCursor(0, 1);
-    lcd.print(F("try again"));
+    connectionError = true;
+    goto sendingError;   
     } 
+
+  sendingError:
+    if (connectionError == true) {
+      connectionError = false;
+      selectedButton = selectOption(F("Receiving error"), F("Repeat   Restart"), F("Repeat"), F("         Restart"));
+        if (selectedButton == 0) goto resendData;
+        else normalFlow();
+      }  
 }
 
-//Method for sending data to COM-port (the string with cube colors to Python script)
+//Method for sending data to COM-port (the char array with cube colors to Python script)
 void writePortData() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(F("Waiting for"));
-  lcd.setCursor(0, 1);
-  lcd.print(F("connection..."));
-  Serial.print("ready");
+  char PortReadyFlag;
+  boolean connectionError;
+  volatile long PortTimeout;
   
-  String PortReadyFlag = "";
-  int PortTimeout = millis();
+  resendData:
+  
+  storeLCD(F("Waiting for"), 0);
+  storeLCD(F("connection..."), 1);
+
+  Serial.print('!');
+
+  PortReadyFlag = '0';
+  connectionError = false;
+  
+  PortTimeout = millis();
   do {
-    PortReadyFlag = "";
-    while (Serial.available()) {
-      PortReadyFlag += char(Serial.read());
-    }
+    PortReadyFlag = '0';
+    PortReadyFlag = char(Serial.read());
+    while(Serial.available()) Serial.read();
     delay(100);
-  } while ((PortReadyFlag != "ok") && (millis() - PortTimeout < 10000));
+  } while ((PortReadyFlag != '!') && (millis() - PortTimeout < 10000));
 
-  if ((millis() - PortTimeout) >= 10000) {goto Timeout;}
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(F("Sending data..."));
-  delay(100);
+  storeLCD(F("Sending data"), 0);
+  storeLCD(F(""), 1);
   Serial.print(ScannedCube);
     
-  PortReadyFlag = "";
   PortTimeout = millis();
   do {
-      PortReadyFlag = "";
-      while (Serial.available()) {
-      PortReadyFlag += char(Serial.read());
-    } 
-    delay(100);
-  } while ((PortReadyFlag.length() == 0) && (millis() - PortTimeout < 10000));
+      PortReadyFlag = '0';
+      PortReadyFlag = char(Serial.read());
+      while(Serial.available()) Serial.read();
+      delay(100);
+  } while(!((PortReadyFlag == '+')||(PortReadyFlag == 'x')) && (millis() - PortTimeout < 10000));
 
-  if ((millis() - PortTimeout) >= 10000) {goto Timeout;}  
-  if (PortReadyFlag == "ok") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Data sent"));
-    lcd.setCursor(0, 1);
-    lcd.print(F("successfully"));
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+    
+  if (PortReadyFlag == '+') {
+    storeLCD(F("Data sent"), 0);
+    storeLCD(F("successfully"), 1);
     }
   else {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Error, try again"));
+    connectionError = true;
+    goto sendingError;   
     } 
-  PortTimeout = millis();
-  Timeout:
-    if ((millis() - PortTimeout) >= 10000) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Timeout error"));
-    lcd.setCursor(0, 1);
-    lcd.print(F("try again"));
-    }
+
+  sendingError:
+    if (connectionError == true) {
+      connectionError = false;
+      selectedButton = selectOption(F("Sending error"), F("Resend   Restart"), F("Resend"), F("         Restart"));
+        if (selectedButton == 0) goto resendData;
+        else normalFlow();
+      }     
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////METHODS FOR SCANNING AND SCANNER CALIBRATION///////////////////////////
@@ -570,7 +577,7 @@ void scanCube() {
   push();
 
   verifyScannedCube();
-  Serial.println(ScannedCube); /////////////////////////////////////////////////////////////////////////////////
+  //Serial.println(ScannedCube); /////////////////////////////////////////////////////////////////////////////////
   
 }
 

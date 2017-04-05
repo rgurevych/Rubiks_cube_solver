@@ -20,36 +20,57 @@ def modify_solution(solution):
     return arduino_cube
 
 def send_solution(arduino_cube):
-    time.sleep(3)
-    port.write(b'ready')
+    time.sleep(1)
+    port.write(b'!')
     print("Ready signal was sent to Arduino")
-    time.sleep(2)
+    time.sleep(1)
+    conf_received = False
+    while conf_received == False:
+        text = port.read(1).decode()
+        if text == "!":
+            conf_received = True
+            print("confirmation received")
+        else:
+            port.reset_input_buffer()
     port.write(arduino_cube.encode())
     print("Solution was sent to Arduino")
-    time.sleep(2)
-    port.write((str(len(arduino_cube))).encode())
-    print("Checksum was sent to Arduino")
+    #while conf_received == False:
+    response = port.read(2).decode()
+    if int(response) == len(arduino_cube):
+        port.write(b'+')
+    else:
+        port.write(b'x')
+    time.sleep(1)
+    #port.write(b'+')
+    print("Data sent successfully")
 
 
 def read_cube():
     #with port:
-    while port.read(5).decode() != "ready":
-        pass
-    time.sleep(2)
+    request_received = False
+    while request_received == False:
+        text = port.read(1).decode()
+        if text == "!":
+            request_received = True
+            print("request received")
+        else:
+            port.reset_input_buffer()
     print("connection established")
-    port.write(b'ok')
+    time.sleep(1)
+    port.write(b'!')
     cube = port.read(54).decode()
+    #cube = raw_cube[2:]
     print("Cube received: " + cube)
-    time.sleep(2)
+    time.sleep(1)
     if len(cube) == 54:
-        port.write(b'ok')
+        port.write(b'+')
     else:
-        port.write(b'error')
+        port.write(b'x')
     return(cube)
 
 
 
-port = serial.Serial('COM6', 9600)
+port = serial.Serial('COM5', 9600)
 
 scanned_cube = read_cube()
 #scanned_cube = "woybogwrybwbbwggygoyoogoryryowbrgyrwbybbyggwgrwrrbrowo"
@@ -57,10 +78,12 @@ scanned_cube = read_cube()
 modified_cube = modify_input(scanned_cube)
 #print(modified_cube)
 solution = solve(modified_cube)
-#print(solution)
+print("Solution: " + solution)
 arduino_cube = modify_solution(solution)
 #arduino_cube = "rLUdBBUUllFFllUUllFF"
+print("Modified solution: " + arduino_cube)
 send_solution(arduino_cube)
+
 
 
 
