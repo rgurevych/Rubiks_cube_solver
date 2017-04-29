@@ -41,8 +41,8 @@ byte f_BLUE = 0;
 //Calibration matrix
 byte f[][6] = {{13, 19, 14, 25, 11, 16},         //white
                {12, 21, 18, 23, 22, 27},         //yellow
-               {13, 19, 27, 37, 24, 33},         //orange
-               {20, 25, 36, 42, 28, 35},         //red
+               {12, 17, 26, 32, 24, 30},         //orange
+               {20, 25, 34, 42, 26, 35},         //red
                {30, 35, 25, 32, 27, 36},         //green
                {34, 44, 33, 43, 20, 26}          //blue
                };
@@ -221,10 +221,13 @@ void solvingOptions() {
 //Method for general process of solving the cube via Python
 void pythonSolveOperation() {
   operateFlag = true;
-  scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //detachInterrupt(0);
+  //writePortData();
+  //readPortData();
+  //assembleCube(SolvedCube);
+  assembleCube("UR");
   detachInterrupt(0);
-  writePortData();
-  readPortData();
 }
 
 
@@ -791,7 +794,7 @@ char scanResult(){
   Serial.print(frequency);//printing BLUE color frequency
   Serial.println("  ");
   delay(100);
-}*/
+}
 
 void printSide(String side[]) {
   byte e = 0; 
@@ -804,49 +807,38 @@ void printSide(String side[]) {
     }
     Serial.println("");
   }
-}
+}*/
 
 
 /////////////////////////////////////////////////METHODS FOR CUBE ASSEMBLING/////////////////////////////////////////
 
 //Method for assembling cube based on the steps string
 void assembleCube(String movementString) {
+  attachInterrupt (0, leftButtonPressed, RISING);
+  operateFlag = true;
   byte solutionLength = movementString.length();
+  storeLCD(F("Assembling cube"), 0);
+  storeLCD(("Step    of " + String(solutionLength)), 1);
   for (byte i=0; i<=solutionLength; i++) {
-    String stepValue = String(movementString[i]);
-    Serial.println(stepValue);
-
-    //Print process on LCD
-    /*lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("Assembling cube"));
-    lcd.setCursor(0, 1);
-    lcd.print("Step   ( ) of ");
-    lcd.setCursor(5, 1);
-    lcd.print(i+1);
-    lcd.setCursor(14, 1);
-    lcd.print(movementString.length());
-    lcd.setCursor(8, 1);
-    lcd.print(stepValue);*/
-    
-    storeLCD(F("Assembling cube"), 0);
-    storeLCD(("Step   of ") + String(solutionLength), 1);
-    storeLCD(("     ") + String(i+1), 2);
-       
+    char stepValue = movementString[i];    
+    storeLCD("     " + String(i+1) + ' ', 2);
     makeStep(stepValue);
   }
-  
+
+  detachInterrupt(0);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(F("Cube assembled"));
   lcd.setCursor(0, 1);
   lcd.print(F("successfully!"));
+  delay(3000);
 }
 
 //Method for implementing one defined step
-void makeStep (String stepCode){
-    
-  if(stepCode == "D") {
+void makeStep (char stepCode){
+  operateFlag = true;  
+  
+  if(stepCode == 'D') {
     downCW();
     push();
     turnCubeCCW();
@@ -858,7 +850,7 @@ void makeStep (String stepCode){
     
   }
   
-  else if(stepCode == "d") {
+  else if(stepCode == 'd') {
     downCCW();
     push();
     turnCubeCW();
@@ -869,7 +861,7 @@ void makeStep (String stepCode){
     push();
   }
   
-  else if(stepCode == "U") {
+  else if(stepCode == 'U') {
     push();
     push();
     downCW();
@@ -880,7 +872,7 @@ void makeStep (String stepCode){
     push();
   }
 
-  else if(stepCode == "u") {
+  else if(stepCode == 'u') {
     push();
     push();
     downCCW();
@@ -891,7 +883,7 @@ void makeStep (String stepCode){
     push();
   }
 
-  else if(stepCode == "R") {
+  else if(stepCode == 'R') {
     turnCubeCCW();
     push();
     downCW();
@@ -902,7 +894,7 @@ void makeStep (String stepCode){
   }
 
 
-  else if(stepCode == "r") {
+  else if(stepCode == 'r') {
     turnCubeCCW();
     push();
     downCCW();
@@ -916,7 +908,7 @@ void makeStep (String stepCode){
     push();
   }
 
-  else if(stepCode == "L") {
+  else if(stepCode == 'L') {
     turnCubeCW();
     push();
     downCW();
@@ -930,7 +922,7 @@ void makeStep (String stepCode){
     push();
   }
 
-  else if(stepCode == "l") {
+  else if(stepCode == 'l') {
     turnCubeCW();
     push();
     downCCW();
@@ -940,7 +932,7 @@ void makeStep (String stepCode){
     push();
   }
 
-  else if(stepCode == "F") {
+  else if(stepCode == 'F') {
     push();
     push();
     push();
@@ -951,7 +943,7 @@ void makeStep (String stepCode){
     turnCubeStraight();
   }
 
-  else if(stepCode == "f") {
+  else if(stepCode == 'f') {
     push();
     push();
     push();
@@ -962,7 +954,7 @@ void makeStep (String stepCode){
     turnCubeStraight();
   }
 
-  else if(stepCode == "B") {
+  else if(stepCode == 'B') {
     push();
     downCW();
     push();
@@ -973,7 +965,7 @@ void makeStep (String stepCode){
     turnCubeStraight();
   }
 
-  else if(stepCode == "b") {
+  else if(stepCode == 'b') {
     push();
     downCCW();
     push();
@@ -985,7 +977,10 @@ void makeStep (String stepCode){
   }
   
   else {
-    //operateFlag = false;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(F("Wrong step code"));
+    operateFlag = false;
   }
 
 }
