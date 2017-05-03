@@ -51,7 +51,7 @@ byte f[][6] = {{13, 19, 14, 25, 11, 16},         //white
 byte motor_1_Position = 90;
 byte motor_2_Position = 104;
 byte motor_3_Position = 89;
-byte motor_4_Position = 34;
+byte motor_4_Position = 36;
 
 
 //Flags
@@ -132,10 +132,6 @@ void setup() {
   turnMotor4(35, 7);
   delay(standardDelay);
 
-  // Initialise interruption pins
-  //attachInterrupt (0, leftButtonPressed, RISING);
-  //attachInterrupt (1, rightButtonPressed, RISING);
-
   // Setting frequency-scaling to 20%
   digitalWrite(S0, HIGH);
   digitalWrite(S1, LOW);
@@ -204,7 +200,7 @@ void calibrateOptions() {
     serialOutput = false;
     selectedButton = selectOption(F("Scan other side?"), F(" Yes        Back"), F(" Yes"), F("           Back"));
     if (selectedButton == 0) goto scanNewSide;
-    else normalFlow();      //arduinoSolveOperation();
+    else normalFlow();      
   }
   else calibrationScan();
 }
@@ -221,12 +217,11 @@ void solvingOptions() {
 //Method for general process of solving the cube via Python
 void pythonSolveOperation() {
   operateFlag = true;
-  //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //detachInterrupt(0);
-  //writePortData();
-  //readPortData();
-  //assembleCube(SolvedCube);
-  assembleCube("UR");
+  scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  detachInterrupt(0);
+  writeAndReadPortData();
+  assembleCube(SolvedCube);
+  //assembleCube("UR");
   detachInterrupt(0);
 }
 
@@ -379,7 +374,7 @@ void printLCD() {
 /////////////////////////////////////////////////METHODS FOR COMMUNICATING VIA COM-PORT/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//Method for reading data from COM-port (the string with solution from Python script)
+/*/Method for reading data from COM-port (the string with solution from Python script)
 void readPortData() {
   char PortReadyFlag;
   boolean connectionError;
@@ -525,6 +520,133 @@ void writePortData() {
         else normalFlow();
       }     
 }
+*/
+
+
+//Method for sending and receiving data from Python script
+void writeAndReadPortData() {
+  char PortReadyFlag;
+  boolean connectionError;
+  volatile long PortTimeout;
+  
+  resendData:
+  
+  storeLCD(F("Waiting for"), 0);
+  storeLCD(F("connection..."), 1);
+
+  Serial.print('!');
+
+  PortReadyFlag = '0';
+  connectionError = false;
+  
+  PortTimeout = millis();
+  do {
+    PortReadyFlag = '0';
+    PortReadyFlag = char(Serial.read());
+    while(Serial.available()) Serial.read();
+    delay(100);
+  } while ((PortReadyFlag != '!') && (millis() - PortTimeout < 10000));
+
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+
+  storeLCD(F("Sending data"), 0);
+  storeLCD(F(""), 1);
+  Serial.print(ScannedCube);
+    
+  PortTimeout = millis();
+  do {
+      PortReadyFlag = '0';
+      PortReadyFlag = char(Serial.read());
+      while(Serial.available()) Serial.read();
+      delay(100);
+  } while(!((PortReadyFlag == '+')||(PortReadyFlag == 'x')) && (millis() - PortTimeout < 10000));
+
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+    
+  if (PortReadyFlag == '+') {
+    storeLCD(F("Data sent"), 0);
+    storeLCD(F("successfully"), 1);
+    }
+  else {
+    connectionError = true;
+    goto sendingError;   
+    } 
+
+  PortTimeout = millis();
+  do {
+    PortReadyFlag = '0';
+    PortReadyFlag = char(Serial.read());
+    while(Serial.available()) Serial.read();
+    delay(100);
+    } while ((PortReadyFlag != '!') && (millis() - PortTimeout < 10000));
+
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+    
+  delay(300);
+  Serial.print('!');
+
+  storeLCD(F("Receiving data.."), 0);
+  storeLCD(F(""), 1);
+  
+  PortTimeout = millis();
+  do {
+      SolvedCube = "";
+      while (Serial.available()) {
+      SolvedCube += char(Serial.read());
+    }
+    delay(100);
+  } while ((SolvedCube.length() == 0) && (millis() - PortTimeout < 10000));
+  
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+
+  storeLCD(F("Verifying data.."), 0);
+  
+  if (SolvedCube.length() < 10) Serial.print('0');
+  Serial.print(SolvedCube.length());
+
+  PortTimeout = millis();
+  do {
+      PortReadyFlag = '0';
+      PortReadyFlag = char(Serial.read());
+      while(Serial.available()) Serial.read();
+      delay(100);
+  } while(!((PortReadyFlag == '+')||(PortReadyFlag == 'x')) && (millis() - PortTimeout < 10000));
+
+  if ((millis() - PortTimeout) >= 10000) {
+    connectionError = true;
+    goto sendingError;
+    }
+    
+  if (PortReadyFlag == '+') {
+    storeLCD(F("Data received"), 0);
+    storeLCD(F("successfully"), 1);
+    }
+  else {
+    connectionError = true;
+    goto sendingError;   
+    } 
+
+  sendingError:
+    if (connectionError == true) {
+      connectionError = false;
+      selectedButton = selectOption(F("Connection error"), F("Resend   Restart"), F("Resend"), F("         Restart"));
+        if (selectedButton == 0) goto resendData;
+        else normalFlow();
+      }     
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////METHODS FOR SCANNING AND SCANNER CALIBRATION///////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -693,7 +815,7 @@ void addSideToScanCubeString() {
     ScannedCube[cubeCounter] = SideScanResult[i];
     cubeCounter ++;
   }
-  Serial.println(ScannedCube); ////////////////////////////////////////////////////////////////////////
+  //Serial.println(ScannedCube); ////////////////////////////////////////////////////////////////////////
 }
 
 
@@ -809,8 +931,10 @@ void printSide(String side[]) {
   }
 }*/
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////METHODS FOR CUBE ASSEMBLING////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////METHODS FOR CUBE ASSEMBLING/////////////////////////////////////////
 
 //Method for assembling cube based on the steps string
 void assembleCube(String movementString) {
@@ -833,6 +957,7 @@ void assembleCube(String movementString) {
   lcd.print(F("successfully!"));
   delay(3000);
 }
+
 
 //Method for implementing one defined step
 void makeStep (char stepCode){
@@ -988,6 +1113,7 @@ void makeStep (char stepCode){
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////ELEMENTARY MOTORS MOVEMENTS//////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 //Method for turning the Motor1 (the motor which rotates the cube)
 void turnMotor1(byte degree, byte motorSpeed) {
