@@ -108,12 +108,12 @@ void(* resetFunc) (void) = 0;
 //Setup method
 void setup() {
   // Initializing pins modes
-  pinMode(S0, OUTPUT);
-  pinMode(S1, OUTPUT);
-  pinMode(S2, OUTPUT);
-  pinMode(S3, OUTPUT);
-  //DDRB = B01111000;
-  pinMode(scanSensor, INPUT);
+  //pinMode(S0, OUTPUT);
+  //pinMode(S1, OUTPUT);
+  //pinMode(S2, OUTPUT);
+  //pinMode(S3, OUTPUT);
+  //pinMode(scanSensor, INPUT);
+  DDRB = B00011110;
 
   //Attaching the motors
   Motor1.attach(rotateMotorPin);
@@ -134,8 +134,9 @@ void setup() {
   delay(standardDelay);
 
   // Setting frequency-scaling to 20%
-  digitalWrite(S0, HIGH);
-  digitalWrite(S1, LOW);
+  //digitalWrite(S0, HIGH);
+  //digitalWrite(S1, LOW);
+  PORTB = B00000010;
 
   //Initialize LCD
   lcd.init();
@@ -254,7 +255,8 @@ char defineButtonPressed() {
 
 //Method from class Button to perform digital debouncing
 void Button::filterAvarage() {
-  if (flagPress != !digitalRead(_pin) ) {
+  //if (flagPress != !digitalRead(_pin) ) {
+  if (flagPress != !bitRead(PIND, _pin)) {  
     if ( _buttonCount != 0 ) _buttonCount--;
     }
   else {
@@ -272,7 +274,7 @@ void Button::filterAvarage() {
 Button::Button(byte pin, byte timeButton) {
   _pin= pin;
   _timeButton= timeButton;
-  pinMode(_pin, INPUT);  
+  //pinMode(_pin, INPUT);  
 }
 
 
@@ -824,20 +826,23 @@ void addSideToScanCubeString() {
 void scan_item() {
   delay(50);
   // Setting red filtered photodiodes to be read
-  digitalWrite(S2,LOW);
-  digitalWrite(S3,LOW);
+  //digitalWrite(S2,LOW);
+  //digitalWrite(S3,LOW);
+  PORTB = B00000010;
   // Reading the output frequency
   f_RED = pulseIn(scanSensor, LOW);
   delay(50);
   // Setting Green filtered photodiodes to be read
-  digitalWrite(S2,HIGH);
-  digitalWrite(S3,HIGH);
+  //digitalWrite(S2,HIGH);
+  //digitalWrite(S3,HIGH);
+  PORTB = B00011010;
   // Reading the output frequency
   f_GREEN = pulseIn(scanSensor, LOW);
   delay(50);
   // Setting Blue filtered photodiodes to be read
-  digitalWrite(S2,LOW);
-  digitalWrite(S3,HIGH);
+  //digitalWrite(S2,LOW);
+  //digitalWrite(S3,HIGH);
+  PORTB = B00010010;
   // Reading the output frequency
   f_BLUE = pulseIn(scanSensor, LOW);
   delay(50);
