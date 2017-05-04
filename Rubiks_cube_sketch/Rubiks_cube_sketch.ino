@@ -21,13 +21,14 @@
 #define maxAngleMotor3 95   // maximum limit for turning
 #define minAngleMotor4 35   // minimum limit fur turning
 #define maxAngleMotor4 98   // maximum limit for turning
-#define standardDelay 200   // standard delay for motor movement
+#define standardDelay 175   // standard delay for motor movement
 
 //Including libraries
 #include <Servo.h>
 #include <MsTimer2.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <avr/pgmspace.h>
 
 
 //Defining variables
@@ -63,8 +64,8 @@ boolean serialOutput = false;
 
 //Data arrays and matrixes
 //Arrays for color scanning
-byte Motor_1_ScanAngles [9] = {44, 85, 120, 4, 4, 168, 134, 96, 58};
-byte Motor_4_ScanAngles [9] = {71, 74, 70, 74, 82, 73, 94, 90, 94};
+const byte Motor_1_ScanAngles [9] PROGMEM = {44, 85, 120, 4, 4, 168, 134, 96, 58};
+const byte Motor_4_ScanAngles [9] PROGMEM = {71, 74, 70, 74, 82, 73, 94, 90, 94};
 //Arrays for side and cube scanning
 char SideScanResult [10];
 char ScannedCube [55];               // = "woybogwrybwbbwggygoyoogoryryowbrgyrwbybbyggwgrwrrbrowo";
@@ -125,13 +126,13 @@ void setup() {
   Serial.begin(9600);
   
   turnMotor1(89, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor3(90, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor4(35, 7);
-  delay(standardDelay);
+  //delay(standardDelay);
 
   // Setting frequency-scaling to 20%
   //digitalWrite(S0, HIGH);
@@ -151,29 +152,8 @@ void loop() {
   
   normalFlow();
   
-  //solveOrCaliblate();
-  
-  //operateOrNot();
-
-  //scanCube();
-  
-  //verifyScannedCube();
-  //writePortData();
-  //delay(500);
-  
-  //readPortData();
-  
   //String movementString = "rLUdBBUUllFFllUUllFF";
   //assembleCube(SolvedCube);
-
-  //scanTopSide();
-  //printSide(SideScanResult);
-  //addSideToScanCubeString(SideScanResult);
-
-  
-  
-  //calibrationScan();
-
 
 }
 
@@ -373,154 +353,6 @@ void printLCD() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////METHODS FOR COMMUNICATING VIA COM-PORT/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*/Method for reading data from COM-port (the string with solution from Python script)
-void readPortData() {
-  char PortReadyFlag;
-  boolean connectionError;
-  volatile long PortTimeout;
-  
-  resendData:
-  
-  storeLCD(F("Waiting for data"), 0);
-  storeLCD(F("from Python..."), 1);
-
-  PortReadyFlag = '0';
-  connectionError = false;
-  
-  PortTimeout = millis();
-  do {
-    PortReadyFlag = '0';
-    PortReadyFlag = char(Serial.read());
-    while(Serial.available()) Serial.read();
-    delay(100);
-    } while ((PortReadyFlag != '!') && (millis() - PortTimeout < 10000));
-
-  if ((millis() - PortTimeout) >= 10000) {
-    connectionError = true;
-    goto sendingError;
-    }
-    
-  delay(300);
-  Serial.print('!');
-
-  storeLCD(F("Receiving data.."), 0);
-  storeLCD(F(""), 1);
-  
-  PortTimeout = millis();
-  do {
-      SolvedCube = "";
-      while (Serial.available()) {
-      SolvedCube += char(Serial.read());
-    }
-    delay(100);
-  } while ((SolvedCube.length() == 0) && (millis() - PortTimeout < 10000));
-  
-  if ((millis() - PortTimeout) >= 10000) {
-    connectionError = true;
-    goto sendingError;
-    }
-
-  storeLCD(F("Verifying data.."), 0);
-  
-  if (SolvedCube.length() < 10) Serial.print('0');
-  Serial.print(SolvedCube.length());
-
-  PortTimeout = millis();
-  do {
-      PortReadyFlag = '0';
-      PortReadyFlag = char(Serial.read());
-      while(Serial.available()) Serial.read();
-      delay(100);
-  } while(!((PortReadyFlag == '+')||(PortReadyFlag == 'x')) && (millis() - PortTimeout < 10000));
-
-  if ((millis() - PortTimeout) >= 10000) {
-    connectionError = true;
-    goto sendingError;
-    }
-    
-  if (PortReadyFlag == '+') {
-    storeLCD(F("Data received"), 0);
-    storeLCD(F("successfully"), 1);
-    }
-  else {
-    connectionError = true;
-    goto sendingError;   
-    } 
-
-  sendingError:
-    if (connectionError == true) {
-      connectionError = false;
-      selectedButton = selectOption(F("Receiving error"), F("Repeat   Restart"), F("Repeat"), F("         Restart"));
-        if (selectedButton == 0) goto resendData;
-        else normalFlow();
-      }  
-}
-
-//Method for sending data to COM-port (the char array with cube colors to Python script)
-void writePortData() {
-  char PortReadyFlag;
-  boolean connectionError;
-  volatile long PortTimeout;
-  
-  resendData:
-  
-  storeLCD(F("Waiting for"), 0);
-  storeLCD(F("connection..."), 1);
-
-  Serial.print('!');
-
-  PortReadyFlag = '0';
-  connectionError = false;
-  
-  PortTimeout = millis();
-  do {
-    PortReadyFlag = '0';
-    PortReadyFlag = char(Serial.read());
-    while(Serial.available()) Serial.read();
-    delay(100);
-  } while ((PortReadyFlag != '!') && (millis() - PortTimeout < 10000));
-
-  if ((millis() - PortTimeout) >= 10000) {
-    connectionError = true;
-    goto sendingError;
-    }
-
-  storeLCD(F("Sending data"), 0);
-  storeLCD(F(""), 1);
-  Serial.print(ScannedCube);
-    
-  PortTimeout = millis();
-  do {
-      PortReadyFlag = '0';
-      PortReadyFlag = char(Serial.read());
-      while(Serial.available()) Serial.read();
-      delay(100);
-  } while(!((PortReadyFlag == '+')||(PortReadyFlag == 'x')) && (millis() - PortTimeout < 10000));
-
-  if ((millis() - PortTimeout) >= 10000) {
-    connectionError = true;
-    goto sendingError;
-    }
-    
-  if (PortReadyFlag == '+') {
-    storeLCD(F("Data sent"), 0);
-    storeLCD(F("successfully"), 1);
-    }
-  else {
-    connectionError = true;
-    goto sendingError;   
-    } 
-
-  sendingError:
-    if (connectionError == true) {
-      connectionError = false;
-      selectedButton = selectOption(F("Sending error"), F("Resend   Restart"), F("Resend"), F("         Restart"));
-        if (selectedButton == 0) goto resendData;
-        else normalFlow();
-      }     
-}
-*/
 
 
 //Method for sending and receiving data from Python script
@@ -765,13 +597,13 @@ void calibrationScan() {
   lcd.setCursor(0, 0);
   lcd.print(F("Calibrating..."));
   turnMotor2(95, 5);
-  delay(200);
+  //delay(200);
   turnMotor4(35, 7);
-  delay(200);
+  //delay(200);
   for (byte i = 0; i<9; i++) {
-    turnMotor1(Motor_1_ScanAngles[i], 4);
-    turnMotor4(Motor_4_ScanAngles[i], 7);
-    delay(100);
+    turnMotor1(pgm_read_byte(&(Motor_1_ScanAngles[i])), 4);
+    turnMotor4(pgm_read_byte(&(Motor_4_ScanAngles[i])), 7);
+    //delay(200);
     scan_item();
     delay(100);
     if (serialOutput == true) {
@@ -792,18 +624,17 @@ void calibrationScan() {
 //Method for scanning cube's top side
 void scanTopSide() {
   turnMotor2(95, 5);
-  delay(200);
+  //delay(200);
   turnMotor4(35, 7);
-  delay(200);
+  //delay(200);
   attachInterrupt (0, leftButtonPressed, RISING);
   operateFlag = true;
   for (byte i = 0; i<9; i++) {
-    turnMotor1(Motor_1_ScanAngles[i], 4);
-    delay(50);
-    turnMotor4(Motor_4_ScanAngles[i], 5);
-    delay(200);
+    turnMotor1(pgm_read_byte(&(Motor_1_ScanAngles[i])), 4);
+    turnMotor4(pgm_read_byte(&(Motor_4_ScanAngles[i])), 7);
+    //delay(200);
     SideScanResult[i] = scanResult();
-    delay(200);
+    delay(100);
   }
   turnMotor4(35, 7);
   turnCubeStraight();
@@ -890,40 +721,7 @@ char scanResult(){
   return color;
 }
 
-//Supportive function for device calibration
-/*void calibrate() {
-  // Setting red filtered photodiodes to be read
-  digitalWrite(S2,LOW);
-  digitalWrite(S3,LOW);
-  // Reading the output frequency
-  frequency = pulseIn(scanSensor, LOW);
-  // Printing the value on the serial monitor
-  Serial.print("R= ");//printing name
-  Serial.print(frequency);//printing RED color frequency
-  Serial.print("  ");
-  delay(100);
-  // Setting Green filtered photodiodes to be read
-  digitalWrite(S2,HIGH);
-  digitalWrite(S3,HIGH);
-  // Reading the output frequency
-  frequency = pulseIn(scanSensor, LOW);
-  // Printing the value on the serial monitor
-  Serial.print("G= ");//printing name
-  Serial.print(frequency);//printing GREEN color frequency
-  Serial.print("  ");
-  delay(100);
-  // Setting Blue filtered photodiodes to be read
-  digitalWrite(S2,LOW);
-  digitalWrite(S3,HIGH);
-  // Reading the output frequency
-  frequency = pulseIn(scanSensor, LOW);
-  // Printing the value on the serial monitor
-  Serial.print("B= ");//printing name
-  Serial.print(frequency);//printing BLUE color frequency
-  Serial.println("  ");
-  delay(100);
-}
-
+/*
 void printSide(String side[]) {
   byte e = 0; 
   for (byte i=0; i<3; i++) {
@@ -1139,6 +937,7 @@ void turnMotor1(byte degree, byte motorSpeed) {
     }
   }
   motor_1_Position = limitedDegree;
+  delay(standardDelay);
 }
 
 
@@ -1160,6 +959,7 @@ void turnMotor2(byte degree, byte motorSpeed) {
     }
   }
   motor_2_Position = limitedDegree;
+  delay(standardDelay);
 }
 
 
@@ -1181,6 +981,7 @@ void turnMotor3(byte degree, byte motorSpeed) {
     }
   }
   motor_3_Position = limitedDegree;
+  delay(standardDelay);
 }
 
 
@@ -1202,56 +1003,57 @@ void turnMotor4(byte degree, byte motorSpeed) {
     }
   }
   motor_4_Position = limitedDegree;
+  delay(standardDelay);
 }
 
 
 //Method for pushing the cube
 void push() {
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor3(45, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(118, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor3(95, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor3(90, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
 }
 
 
 //Method for turning the cube ClockWise
 void turnCubeCW() {
   turnMotor2(95, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(5, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
 }
 
 
 //Method for turning the cube CounterClockWise
 void turnCubeCCW() {
   turnMotor2(95, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(171, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
 }
 
 
 //Method for turning the cube straight
 void turnCubeStraight() {
   turnMotor2(95, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(88, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
 }
 
 
@@ -1259,17 +1061,17 @@ void turnCubeStraight() {
 void downCW() {
   turnCubeCW();
   turnMotor3(45, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(135, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(95, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(88, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor3(90, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
 }
 
 
@@ -1277,16 +1079,16 @@ void downCW() {
 void downCCW() {
   turnCubeCCW();
   turnMotor3(45, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(135, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(80, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor1(88, 3);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor2(105, 5);
-  delay(standardDelay);
+  //delay(standardDelay);
   turnMotor3(90, 2);
-  delay(standardDelay);
+  //delay(standardDelay);
 }
 
