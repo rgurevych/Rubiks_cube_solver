@@ -10,7 +10,7 @@
 #define S1 10
 #define S2 11
 #define S3 12
-#define scanSensor 13
+#define scanSensor 8
 
 //Default motors movements limits
 #define minAngleMotor1 0    // minimum limit fur turning
@@ -112,6 +112,7 @@ void setup() {
   pinMode(S1, OUTPUT);
   pinMode(S2, OUTPUT);
   pinMode(S3, OUTPUT);
+  //DDRB = B01111000;
   pinMode(scanSensor, INPUT);
 
   //Attaching the motors
@@ -171,10 +172,7 @@ void loop() {
   
   
   //calibrationScan();
-  
-  delay(1000);
 
- 
 
 }
 
@@ -715,7 +713,10 @@ void verifyScannedSide() {
   }
   if (sideOK == false) {
     selectedButton = selectOption(F("Side scan error"), F("Repeat   Restart"), F("Repeat"), F("         Restart"));
-  if (selectedButton == 0) scanTopSide();
+  if (selectedButton == 0) {
+    printLCD();
+    scanTopSide();
+    }
   else normalFlow();
   }
   else addSideToScanCubeString();
@@ -744,7 +745,7 @@ void verifyScannedCube() {
   
   if ((w_count != 9) || (y_count != 9) || (o_count != 9) || (r_count != 9) || (g_count != 9) || (b_count != 9)) {scanErrorFlag = true;}
   
-  Serial.println(ScannedCube);
+  //Serial.println(ScannedCube);
   
   if (scanErrorFlag == true) {
     selectedButton = selectOption(F("Cube scan error"), F("Rescan   Restart"), F("Rescan"), F("         Restart"));
@@ -955,7 +956,7 @@ void assembleCube(String movementString) {
   lcd.print(F("Cube assembled"));
   lcd.setCursor(0, 1);
   lcd.print(F("successfully!"));
-  delay(3000);
+  delay(5000);
 }
 
 
