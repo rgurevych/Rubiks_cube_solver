@@ -34,13 +34,13 @@
 //Defining variables
 
 //Initialize the variables for color frequences
-byte frequency = 0;
+//byte frequency = 0;
 byte f_RED = 0;
 byte f_GREEN = 0;
 byte f_BLUE = 0;
 
 //Calibration matrix
-const byte f[][6] = {{16, 21, 16, 22, 13, 17},         //white
+byte f[][6] = {{16, 21, 16, 22, 13, 17},         //white
                {13, 18, 21, 27, 25, 29},         //yellow
                {15, 21, 31, 35, 26, 31},         //orange
                {23, 29, 34, 43, 32, 37},         //red
@@ -68,8 +68,27 @@ const byte Motor_1_ScanAngles [9] PROGMEM = {44, 85, 120, 4, 4, 168, 134, 96, 58
 const byte Motor_4_ScanAngles [9] PROGMEM = {71, 74, 70, 74, 82, 73, 94, 90, 94};
 //Arrays for side and cube scanning
 char SideScanResult [10];
-char ScannedCube [55];               // = "woybogwrybwbbwggygoyoogoryryowbrgyrwbybbyggwgrwrrbrowo";
+char ScannedCube [55] = "wwwwwwwwwbbbbbbbbbrrrrrrrrryyyyyyyyygggggggggooooooooo"; //"woybogwrybwbbwggygoyoogoryryowbrgyrwbybbyggwgrwrrbrowo";  ///////////////////////////////////////////////////////
+char CubeCopy [55];
 String SolvedCube = "";
+
+//Variables for virtual cube rotation
+const byte v_map[12] PROGMEM = {'U', 'u', 'F', 'f', 'R', 'r', 'L', 'l', 'D', 'd', 'B', 'b'};
+const byte v_table [][40] PROGMEM = {
+  {0, 1, 2, 3, 5, 6, 7, 8, 18, 19, 20, 9, 10, 11, 45, 46, 47, 36, 37, 38, 6, 3, 0, 7, 1, 8, 5, 2, 9, 10, 11, 45, 46, 47, 36, 37, 38, 18, 19, 20},                   //U
+  {0, 1, 2, 3, 5, 6, 7, 8, 18, 19, 20, 9, 10, 11, 45, 46, 47, 36, 37, 38, 2, 5, 8, 1, 7, 0, 3, 6, 36, 37, 38, 18, 19, 20, 9, 10, 11, 45, 46, 47},                   //u (U')
+  {18, 19, 20, 21, 23, 24, 25, 26, 6, 7, 8, 9, 12, 15, 27, 28, 29, 38, 41, 44, 24, 21, 18, 25, 19, 26, 23, 20, 44, 41, 38, 6, 7, 8, 15, 12, 9, 27, 28, 29},         //F
+  {18, 19, 20, 21, 23, 24, 25, 26, 6, 7, 8, 9, 12, 15, 27, 28, 29, 38, 41, 44, 20, 23, 26, 19, 25, 18, 21, 24, 9, 12, 15, 29, 28, 27, 38, 41, 44, 8, 7, 6},         //f (F')
+  {9, 10, 11, 12, 14, 15, 16, 17, 2, 5, 8, 20, 23, 26, 29, 32, 35, 45, 48, 51, 15, 12, 9, 16, 10, 17, 14, 11, 20, 23, 26, 29, 32, 35, 51, 48, 45, 8, 5, 2},         //R
+  {9, 10, 11, 12, 14, 15, 16, 17, 2, 5, 8, 20, 23, 26, 29, 32, 35, 45, 48, 51, 11, 14, 17, 10, 16, 9, 12, 15, 51, 48, 45, 2, 5, 8, 20, 23, 26, 29, 32, 35},         //r (R')
+  {36, 37, 38, 39, 41, 42, 43, 44, 0, 3, 6, 18, 21, 24, 27, 30, 33, 47, 50, 53, 42, 39, 36, 43, 37, 44, 41, 38, 53, 50, 47, 0, 3, 6, 18, 21, 24, 33, 30, 27},       //L
+  {36, 37, 38, 39, 41, 42, 43, 44, 0, 3, 6, 18, 21, 24, 27, 30, 33, 47, 50, 53, 38, 41, 44, 37, 43, 36, 39, 42, 18, 21, 24, 27, 30, 33, 53, 50, 47, 6, 3, 0},       //l (L')
+  {27, 28, 29, 30, 32, 33, 34, 35, 24, 25, 26, 15, 16, 17, 51, 52, 53, 42, 43, 44, 33, 30, 27, 34, 28, 35, 32, 29, 42, 43, 44, 24, 25, 26, 15, 16, 17, 51, 52, 53}, //D
+  {27, 28, 29, 30, 32, 33, 34, 35, 24, 25, 26, 15, 16, 17, 51, 52, 53, 42, 43, 44, 29, 32, 35, 28, 34, 27, 30, 33, 15, 16, 17, 51, 52, 53, 42, 43, 44, 24, 25, 26}, //d (D')
+  {45, 46, 47, 48, 50, 51, 52, 53, 0, 1, 2, 11, 14, 17, 33, 34, 35, 36, 39, 42, 51, 48, 45, 52, 46, 53, 50, 47, 11, 14, 17, 35, 34, 33, 36, 39, 42, 2, 1, 0},       //B
+  {45, 46, 47, 48, 50, 51, 52, 53, 0, 1, 2, 11, 14, 17, 33, 34, 35, 36, 39, 42, 47, 50, 53, 46, 52, 45, 48, 51, 42, 39, 36, 0, 1, 2, 17, 14, 11, 33, 34, 35}        //b (B')
+  };
+
 //Other global variables
 byte cubeCounter;
 char string1LCD [17];
@@ -189,7 +208,7 @@ void calibrateOptions() {
 void solvingOptions() {
   selectedButton = selectOption(F("Solving mode?"), F("Python   Arduino"), F("Python"), F("         Arduino"));
   if (selectedButton == 0) pythonSolveOperation();
-  else delay(5000);      //arduinoSolveOperation();
+  else arduinoSolveOperation();
 }
 
 
@@ -205,6 +224,16 @@ void pythonSolveOperation() {
 }
 
 
+//Method for general process of solving the cube on Arduino
+void arduinoSolveOperation() {
+  operateFlag = true;
+  //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  detachInterrupt(0);
+  copyCube();
+  solveCube();
+  assembleCube(SolvedCube);
+  detachInterrupt(0);
+}
 
 
 
@@ -1090,5 +1119,52 @@ void downCCW() {
   //delay(standardDelay);
   turnMotor3(90, 2);
   //delay(standardDelay);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////METHODS FOR SOLVING THE CUBE ON ARDUINO//////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Method for overwriting the cube copy
+void copyCube() {
+  for (byte i=0; i<55; i++) {
+    CubeCopy[i] = ScannedCube[i];
+  }
+  Serial.println(CubeCopy);
+}
+
+
+//Methods for virtual rotation of the cube
+void virtualMove(char v_move) {
+  byte index;
+  for (index = 0; index <13; index++) {
+    if (v_move == pgm_read_byte(&(v_map[index]))) {
+      break;
+    }
+  }
+  for (byte j = 0; j<20; j++) {
+    ScannedCube[pgm_read_byte(&(v_table[index][j]))] = CubeCopy[pgm_read_byte(&(v_table[index][j+20]))];
+  }
+  copyCube();
+}
+
+
+//General method for solivng the cube
+void solveCube() {
+  virtualMove('R');
+  virtualMove('L');
+  virtualMove('U');
+  virtualMove('D');
+  virtualMove('B');
+  virtualMove('F');
+  virtualMove('f');
+  virtualMove('b');
+  virtualMove('d');
+  virtualMove('u');
+  virtualMove('l');
+  virtualMove('r');
+  
+  delay(1000);
 }
 
