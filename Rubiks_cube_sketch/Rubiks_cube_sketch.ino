@@ -72,7 +72,7 @@ char ScannedCube [55] = "wwwwwwwwwbbbbbbbbbrrrrrrrrryyyyyyyyygggggggggooooooooo"
 char CubeCopy [55];
 String SolvedCube = "";
 
-//Variables for virtual cube rotation
+//Variables for cube solving algorythms
 const byte v_map[12] PROGMEM = {'U', 'u', 'F', 'f', 'R', 'r', 'L', 'l', 'D', 'd', 'B', 'b'};
 const byte v_table [][40] PROGMEM = {
   {0, 1, 2, 3, 5, 6, 7, 8, 18, 19, 20, 9, 10, 11, 45, 46, 47, 36, 37, 38, 6, 3, 0, 7, 1, 8, 5, 2, 9, 10, 11, 45, 46, 47, 36, 37, 38, 18, 19, 20},                   //U
@@ -88,13 +88,21 @@ const byte v_table [][40] PROGMEM = {
   {45, 46, 47, 48, 50, 51, 52, 53, 0, 1, 2, 11, 14, 17, 33, 34, 35, 36, 39, 42, 51, 48, 45, 52, 46, 53, 50, 47, 11, 14, 17, 35, 34, 33, 36, 39, 42, 2, 1, 0},       //B
   {45, 46, 47, 48, 50, 51, 52, 53, 0, 1, 2, 11, 14, 17, 33, 34, 35, 36, 39, 42, 47, 50, 53, 46, 52, 45, 48, 51, 42, 39, 36, 0, 1, 2, 17, 14, 11, 33, 34, 35}        //b (B')
   };
+byte solving_level;
+byte stage_solving_step;
+char u_color;
+char r_color;
+char f_color;
+char l_color;
+char d_color;
+char b_color;
 
 //Other global variables
 byte cubeCounter;
+
+//Global char strings to be printed on LCD
 char string1LCD [17];
 char string2LCD [17];
-
-//Constants
 
 
 //Class that defines the button as object
@@ -230,6 +238,7 @@ void arduinoSolveOperation() {
   //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   detachInterrupt(0);
   copyCube();
+  //virtualSequence(F("RDURRL"));
   solveCube();
   assembleCube(SolvedCube);
   detachInterrupt(0);
@@ -1136,6 +1145,14 @@ void copyCube() {
 
 
 //Methods for virtual rotation of the cube
+void virtualSequence(String v_sequence) {
+  byte sequenceLength = v_sequence.length();
+  for (byte i=0; i<sequenceLength; i++) {
+    virtualMove(v_sequence[i]);    
+  }
+}
+
+
 void virtualMove(char v_move) {
   byte index;
   for (index = 0; index <13; index++) {
@@ -1146,25 +1163,345 @@ void virtualMove(char v_move) {
   for (byte j = 0; j<20; j++) {
     ScannedCube[pgm_read_byte(&(v_table[index][j]))] = CubeCopy[pgm_read_byte(&(v_table[index][j+20]))];
   }
+  Serial.print(F("Virtual move: "));
+  Serial.println(v_move);
   copyCube();
 }
 
 
 //General method for solivng the cube
 void solveCube() {
-  virtualMove('R');
-  virtualMove('L');
-  virtualMove('U');
-  virtualMove('D');
-  virtualMove('B');
-  virtualMove('F');
-  virtualMove('f');
-  virtualMove('b');
-  virtualMove('d');
-  virtualMove('u');
-  virtualMove('l');
-  virtualMove('r');
-  
-  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(F("Solving cube..."));
+  u_color = ScannedCube[4];
+  r_color = ScannedCube[13];
+  f_color = ScannedCube[22];
+  l_color = ScannedCube[40];
+  d_color = ScannedCube[31];
+  b_color = ScannedCube[49];
+  solving_level = 1;
+  stage_solving_step = 0;
+  while(solving_level != 2) {
+    solveStage();
+  }
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(F("Cube solved"));
+  lcd.setCursor(0, 1);
+  lcd.print(F("successfully!"));
+  delay(5000);
+}
+
+
+//Method for solving the cube depending on current solving stage
+void solveStage() {
+  Serial.print(F("Solving level: "));
+  Serial.println(solving_level);
+  switch(solving_level)
+  {
+    case 1:
+      solveBottomCross();
+      break;
+    
+    
+  }
+}
+
+//Method for solving the bottom cross (consequently checkes the F, R, B and L sides of the cube)
+void solveBottomCross() {
+  //Check if the bottom cross is already solved. If no - starts checking the sides.
+  if (ScannedCube[28] == d_color && ScannedCube[30] == d_color && ScannedCube[32] == d_color && ScannedCube[34] == d_color &&
+      ScannedCube[16] == r_color && ScannedCube[25] == f_color && ScannedCube[43] == l_color && ScannedCube[52] == b_color) {
+    Serial.println(F("Bottom cross solved"));
+    solving_level = 2;
+    stage_solving_step = 0;
+  }
+  else {
+    //Check the front side elements
+    if (stage_solving_step < 1) {
+          //Check that the front-bottom edge is correct.
+          if (ScannedCube[28] == d_color) {
+              if (ScannedCube[25] == f_color) {
+                  stage_solving_step = 1;
+              }
+              else {
+                  //Check if the front bottom element belongs to the cross but should be located in different place
+                  if (ScannedCube[25] == r_color) {
+                    virtualMove('D');
+                  }
+                  else if (ScannedCube[25] == l_color) {
+                    virtualMove('d');
+                  }
+                  else {
+                    virtualMove('D');
+                    virtualMove('D');
+                  }
+              }
+          }
+          
+          //else if ((ScannedCube[28] == f_color) && (ScannedCube[25] == d_color)) {          -----maybe to be deleted
+          else if (ScannedCube[25] == d_color) {
+              virtualSequence(F("fDrd"));
+          }
+      }
+      
+      if (ScannedCube[23] == d_color) {
+              if (ScannedCube[12] == r_color) {
+                  virtualMove('r');
+                }
+              else {
+                  virtualMove('R');
+              }
+          }
+          
+      if (ScannedCube[21] == d_color) {
+              if (ScannedCube[41] == l_color) {
+                  virtualMove('L');
+                }
+              else {
+                  virtualMove('l');
+              }
+          }
+        
+      if (ScannedCube[19] == d_color) {
+              if (ScannedCube[7] == f_color) {
+                  virtualSequence(F("RurF"));
+                }
+              else {
+                  virtualMove('u');
+              }
+          }
+
+      if (ScannedCube[7] == d_color) {
+              if (ScannedCube[19] == f_color) {
+                  virtualSequence(F("FF"));
+                }
+              else if (ScannedCube[19] == r_color) {
+                  virtualSequence(F("uRR"));
+                }
+
+              else if (ScannedCube[19] == l_color) {
+                  virtualSequence(F("ULL"));
+                }
+                
+              else {
+                  virtualSequence(F("UURR"));
+                }  
+          }
+
+
+    if (stage_solving_step < 2) {
+        //Check the right side elements
+          if (ScannedCube[32] == d_color) {
+              if (ScannedCube[16] == r_color) {
+                  stage_solving_step = 2;
+              }
+              else {
+                  if (ScannedCube[16] == b_color) {
+                    virtualSequence(F("RRuBB"));
+                  }
+                  else if (ScannedCube[16] == f_color) {
+                    virtualSequence(F("RRUFF"));
+                  }
+                  else {
+                    virtualSequence(F("RRUUll"));
+                  }
+              }
+          }
+          
+          //else if ((ScannedCube[32] == r_color) && (ScannedCube[16] == d_color)) {    ---------------------
+          else if (ScannedCube[16] == d_color) {
+              virtualSequence(F("rDbd"));
+          }
+      }
+      
+      if (ScannedCube[14] == d_color) {
+              if (ScannedCube[48] == b_color) {
+                  virtualMove('b');
+                }
+              else {
+                  virtualMove('B');
+              }
+          }
+          
+      if (ScannedCube[12] == d_color) {
+              if (ScannedCube[23] == f_color) {
+                  virtualMove('F');
+                }
+              else {
+                  virtualMove('f');
+              }
+          }
+        
+      if (ScannedCube[10] == d_color) {
+              if (ScannedCube[5] == r_color) {
+                  virtualSequence(F("BubR"));
+                }
+              else {
+                  virtualMove('u');
+              }
+          }
+
+      if (ScannedCube[5] == d_color) {
+              if (ScannedCube[10] == r_color) {
+                  virtualSequence(F("RR"));
+                }
+              else if (ScannedCube[10] == b_color) {
+                  virtualSequence(F("uBB"));
+                }
+
+              else if (ScannedCube[10] == f_color) {
+                  virtualSequence(F("UFF"));
+                }
+                
+              else {
+                  virtualSequence(F("UUll"));
+                }  
+          }
+
+
+    if (stage_solving_step < 3) {
+        //Check the back side elements
+          if (ScannedCube[34] == d_color) {
+              if (ScannedCube[52] == b_color) {
+                  stage_solving_step = 3;
+              }
+              else {
+                  if (ScannedCube[52] == l_color) {
+                    virtualSequence(F("BBull"));
+                  }
+                  else if (ScannedCube[52] == r_color) {
+                    virtualSequence(F("BBURR"));
+                  }
+                  else {
+                    virtualSequence(F("BBUUFF"));
+                  }
+              }
+          }
+          
+          //else if ((ScannedCube[34] == b_color) && (ScannedCube[52] == d_color)) {              ------------------------
+          else if (ScannedCube[52] == d_color) {
+              virtualSequence(F("bDld"));
+          }
+      }
+      
+      if (ScannedCube[50] == d_color) {
+              if (ScannedCube[39] == l_color) {
+                  virtualMove('l');
+                }
+              else {
+                  virtualMove('L');
+              }
+          }
+          
+      if (ScannedCube[48] == d_color) {
+              if (ScannedCube[14] == r_color) {
+                  virtualMove('R');
+                }
+              else {
+                  virtualMove('r');
+              }
+          }
+        
+      if (ScannedCube[46] == d_color) {
+              if (ScannedCube[1] == b_color) {
+                  virtualSequence(F("LulB"));
+                }
+              else {
+                  virtualMove('u');
+              }
+          }
+
+      if (ScannedCube[1] == d_color) {
+              if (ScannedCube[46] == b_color) {
+                  virtualSequence(F("BB"));
+                }
+              else if (ScannedCube[46] == l_color) {
+                  virtualSequence(F("ull"));
+                }
+
+              else if (ScannedCube[46] == r_color) {
+                  virtualSequence(F("URR"));
+                }
+                
+              else {
+                  virtualSequence(F("UUFF"));
+                }  
+          }
+
+
+    if (stage_solving_step < 4) {
+        //Check the left side elements
+          if (ScannedCube[30] == d_color) {
+              if (ScannedCube[43] == l_color) {
+                  stage_solving_step = 4;
+              }
+              else {
+                  if (ScannedCube[43] == f_color) {
+                    virtualSequence(F("lluFF"));
+                  }
+                  else if (ScannedCube[43] == b_color) {
+                    virtualSequence(F("llUBB"));
+                  }
+                  else {
+                    virtualSequence(F("llUURR"));
+                  }
+              }
+          }
+          
+          //else if ((ScannedCube[30] == l_color) && (ScannedCube[43] == d_color)) {               ------------------------
+          else if (ScannedCube[43] == d_color) {
+              virtualSequence(F("lDfd"));
+          }
+      }
+      
+      if (ScannedCube[41] == d_color) {
+              if (ScannedCube[21] == f_color) {
+                  virtualMove('f');
+                }
+              else {
+                  virtualMove('F');
+              }
+          }
+          
+      if (ScannedCube[39] == d_color) {
+              if (ScannedCube[50] == b_color) {
+                  virtualMove('B');
+                }
+              else {
+                  virtualMove('b');
+              }
+          }
+        
+      if (ScannedCube[37] == d_color) {
+              if (ScannedCube[3] == l_color) {
+                  virtualSequence(F("FufL"));
+                }
+              else {
+                  virtualMove('u');
+              }
+          }
+
+      if (ScannedCube[3] == d_color) {
+              if (ScannedCube[37] == l_color) {
+                  virtualSequence(F("ll"));
+                }
+              else if (ScannedCube[37] == f_color) {
+                  virtualSequence(F("uFF"));
+                }
+
+              else if (ScannedCube[37] == b_color) {
+                  virtualSequence(F("UBB"));
+                }
+                
+              else {
+                  virtualSequence(F("UURR"));
+                }  
+          }
+    
+    //Serial.print(F("Bottom cross solving stage: "));
+    //Serial.println(stage_solving_step);    
+  }
 }
 
