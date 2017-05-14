@@ -66,6 +66,7 @@ boolean serialOutput = false;
 //Arrays for color scanning
 const byte Motor_1_ScanAngles [9] PROGMEM = {44, 85, 120, 4, 4, 168, 134, 96, 58};
 const byte Motor_4_ScanAngles [9] PROGMEM = {71, 74, 70, 74, 82, 73, 94, 90, 94};
+
 //Arrays for side and cube scanning
 char SideScanResult [10];
 char ScannedCube [55] = "wwwwwwwwwbbbbbbbbbrrrrrrrrryyyyyyyyygggggggggooooooooo"; //"woybogwrybwbbwggygoyoogoryryowbrgyrwbybbyggwgrwrrbrowo";  ///////////////////////////////////////////////////////
@@ -73,14 +74,18 @@ char CubeCopy [55];
 String SolvedCube = "";
 
 //Variables for cube solving algorythms
-const byte v_map[12] PROGMEM = {'U', 'u', 'F', 'f', 'R', 'r', 'L', 'l', 'D', 'd', 'B', 'b'};
+
+//Map for detecting the rotation sequence number
+const char v_map[12] PROGMEM = {'U', 'u', 'F', 'f', 'R', 'r', 'L', 'l', 'D', 'd', 'B', 'b'};
+
+//Table with mapping sequences for cube virtual rotation
 const byte v_table [][40] PROGMEM = {
   {0, 1, 2, 3, 5, 6, 7, 8, 18, 19, 20, 9, 10, 11, 45, 46, 47, 36, 37, 38, 6, 3, 0, 7, 1, 8, 5, 2, 9, 10, 11, 45, 46, 47, 36, 37, 38, 18, 19, 20},                   //U
   {0, 1, 2, 3, 5, 6, 7, 8, 18, 19, 20, 9, 10, 11, 45, 46, 47, 36, 37, 38, 2, 5, 8, 1, 7, 0, 3, 6, 36, 37, 38, 18, 19, 20, 9, 10, 11, 45, 46, 47},                   //u (U')
   {18, 19, 20, 21, 23, 24, 25, 26, 6, 7, 8, 9, 12, 15, 27, 28, 29, 38, 41, 44, 24, 21, 18, 25, 19, 26, 23, 20, 44, 41, 38, 6, 7, 8, 15, 12, 9, 27, 28, 29},         //F
   {18, 19, 20, 21, 23, 24, 25, 26, 6, 7, 8, 9, 12, 15, 27, 28, 29, 38, 41, 44, 20, 23, 26, 19, 25, 18, 21, 24, 9, 12, 15, 29, 28, 27, 38, 41, 44, 8, 7, 6},         //f (F')
   {9, 10, 11, 12, 14, 15, 16, 17, 2, 5, 8, 20, 23, 26, 29, 32, 35, 45, 48, 51, 15, 12, 9, 16, 10, 17, 14, 11, 20, 23, 26, 29, 32, 35, 51, 48, 45, 8, 5, 2},         //R
-  {9, 10, 11, 12, 14, 15, 16, 17, 2, 5, 8, 20, 23, 26, 29, 32, 35, 45, 48, 51, 11, 14, 17, 10, 16, 9, 12, 15, 51, 48, 45, 2, 5, 8, 20, 23, 26, 29, 32, 35},         //r (R')
+  {9, 10, 11, 12, 14, 15, 16, 17, 2, 5, 8, 20, 23, 26, 29, 32, 35, 45, 48, 51, 11, 14, 17, 10, 16, 9, 12, 15, 51, 48, 45, 2, 5, 8, 20, 23, 26, 35, 32, 29},         //r (R')
   {36, 37, 38, 39, 41, 42, 43, 44, 0, 3, 6, 18, 21, 24, 27, 30, 33, 47, 50, 53, 42, 39, 36, 43, 37, 44, 41, 38, 53, 50, 47, 0, 3, 6, 18, 21, 24, 33, 30, 27},       //L
   {36, 37, 38, 39, 41, 42, 43, 44, 0, 3, 6, 18, 21, 24, 27, 30, 33, 47, 50, 53, 38, 41, 44, 37, 43, 36, 39, 42, 18, 21, 24, 27, 30, 33, 53, 50, 47, 6, 3, 0},       //l (L')
   {27, 28, 29, 30, 32, 33, 34, 35, 24, 25, 26, 15, 16, 17, 51, 52, 53, 42, 43, 44, 33, 30, 27, 34, 28, 35, 32, 29, 42, 43, 44, 24, 25, 26, 15, 16, 17, 51, 52, 53}, //D
@@ -88,8 +93,47 @@ const byte v_table [][40] PROGMEM = {
   {45, 46, 47, 48, 50, 51, 52, 53, 0, 1, 2, 11, 14, 17, 33, 34, 35, 36, 39, 42, 51, 48, 45, 52, 46, 53, 50, 47, 11, 14, 17, 35, 34, 33, 36, 39, 42, 2, 1, 0},       //B
   {45, 46, 47, 48, 50, 51, 52, 53, 0, 1, 2, 11, 14, 17, 33, 34, 35, 36, 39, 42, 47, 50, 53, 46, 52, 45, 48, 51, 42, 39, 36, 0, 1, 2, 17, 14, 11, 33, 34, 35}        //b (B')
   };
+
+//Map for making the virtual Y move
+const byte y_table[24] PROGMEM = {21, 22, 23, 12, 13, 14, 48, 49, 50, 39, 40, 41, 12, 13, 14, 48, 49, 50, 39, 40, 41, 21, 22, 23};
+
+//Counter of Y turns
+byte yTurnCounter = 0;
+
+//Table for F2L step possible patterns
+const byte f2l_t [][5] PROGMEM = {
+  {19, 20, 7, 8, 9}, {5, 8, 9, 10, 20}, {8, 37, 9, 3, 20}, {20, 1, 8, 46, 9}, {20, 37, 8, 3, 9}, {8, 1, 9, 46, 20}, {20, 46, 8, 1, 9}, {8, 3, 9, 37, 20},
+  {8, 46, 9, 1, 20}, {20, 3, 8, 37, 9}, {8, 10, 9, 5, 20}, {20, 7, 19, 8, 9}, {19, 8, 9, 7, 20}, {20, 5, 8, 10, 9}, {20, 10, 8, 5, 9}, {7, 8, 9, 19, 20},
+  {9, 19, 7, 20, 8}, {9, 5, 20, 10, 8}, {19, 45, 7, 11, 2}, {18, 5, 10, 38, 6}, {19, 36, 7, 47, 0}, {5, 36, 10, 47, 0}, {9, 10, 20, 5, 8}, {7, 9, 19, 20, 8},
+  {19, 26, 7, 15, 29}, {5, 26, 10, 15, 29}, {19, 29, 7, 26, 15}, {5, 15, 10, 29, 26}, {19, 15, 7, 29, 26}, {5, 29, 10, 26, 15}, {23, 8, 9, 12, 20}, {20, 23, 8, 12, 9},
+  {8, 12, 9, 23, 20}, {20, 12, 23, 8, 9}, {23, 9, 20, 12, 8}, {9, 12, 20, 23, 8}, {23, 15, 12, 29, 26}, {23, 29, 26, 12, 15}, {12, 15, 23, 29, 26}, {12, 29, 23, 26, 15},
+  {12, 26, 23, 15, 29}
+  };
+
+//F2L solutions
+const char f2l_solutions [] PROGMEM =
+  "FrfR.URur.fuF.RUr.UfuFUfUUF.uRUrUURur.UfUUFUfUUF.uRUUrUURur.uRurUfuF.uRUrURUr.FUUFFuFFuf.rUURRURRUR.UfUFufuF.uRurURUr.RurUUfuF.RUrUURurURur"
+  ".fUUFUfuF.RUUruRUr.fUUFufUF.RUUrURur.RUrfuF.RUrURur.FURurfRur.RurURUUrURUr.URurFrfR.rfRURurF.fUFufUF.RurURur.fuFUfuF.RUruRUr.uRurUURur.URUrUURUr"
+  ".UURUrufUF.UfuFuRUr.RUruRUruRUr.RurUfUF.RuruRUrUURur.RurURUUrURur.RFURurfur.RBUUbrfuF.RurUfUUFUUfUF.";
+
+//Table for OLL step possible patterns
+const byte oll_t [][8] PROGMEM = {
+  {1, 3, 5, 6, 7, 8, 47, 45}, {1, 3, 5, 6, 7, 8, 36, 11}, {0, 1, 3, 5, 7, 8, 38, 45}, {1, 3, 5, 7, 36, 11, 38, 9}, {1, 3, 5, 7, 36, 38, 45, 20},
+  {1, 3, 5, 6, 7, 47, 11, 20}, {1, 3, 5, 7, 8, 36, 45, 18}, {36, 37, 38, 46, 19, 9, 10, 11}, {36, 37, 38, 45, 46, 19, 20, 10}, {6, 37, 47, 46, 10, 11, 19, 20},
+  {8, 36, 37, 46, 45, 18, 19, 10}, {0, 2, 46, 37, 38, 9, 10, 19}, {0, 2, 46, 37, 10, 18, 19, 20}, {0, 8, 46, 45, 37, 38, 10, 19}, {0, 2, 6, 8, 46, 37, 10, 19},
+  {0, 2, 3, 5, 6, 8, 46, 19}, {0, 1, 2, 3, 6, 8, 10, 19}
+  };
+
+//OLL solutions
+const char oll_solutions [] PROGMEM =
+  "RRdRUUrDRUUR.RURDruRdRR.RRdRurDRUR.RUrURurURUUr.RUURRuRRuRRUUR.RUrURUUr.luLulUUL.RUbRBRRurFRf.BlbLUllflFul.RUBubrBLUlub.RUBubrbruRUB.rUUFRUruFFUUFR"
+  ".BlbLUUlubUBllul.RUrUrFRfUUrFRf.fBulULULUluFb.RUruLrFRfl.LFrflRURur"
+
+//Variables and counters for solving steps
 byte solving_level;
 byte stage_solving_step;
+
+//Variables showing the current side colors
 char u_color;
 char r_color;
 char f_color;
@@ -97,7 +141,7 @@ char l_color;
 char d_color;
 char b_color;
 
-//Other global variables
+//Counter used for different cube operations
 byte cubeCounter;
 
 //Global char strings to be printed on LCD
@@ -136,11 +180,6 @@ void(* resetFunc) (void) = 0;
 //Setup method
 void setup() {
   // Initializing pins modes
-  //pinMode(S0, OUTPUT);
-  //pinMode(S1, OUTPUT);
-  //pinMode(S2, OUTPUT);
-  //pinMode(S3, OUTPUT);
-  //pinMode(scanSensor, INPUT);
   DDRB = B00011110;
 
   //Attaching the motors
@@ -238,7 +277,7 @@ void arduinoSolveOperation() {
   //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   detachInterrupt(0);
   copyCube();
-  //virtualSequence(F("RDURRL"));
+  virtualSequence(F("RDURL"));  //"RDURL"
   solveCube();
   assembleCube(SolvedCube);
   detachInterrupt(0);
@@ -719,23 +758,23 @@ void scan_item() {
 
 
 //Function for detecting color (All devices and Arduino connected to power supply)
-char defineColor(byte r, byte g, byte b) {
-  if(r>=f[0][0] && r<=f[0][1] && g>=f[0][2] && g<=f[0][3] && b>=f[0][4] && b<=f[0][5]){
+char defineColor() {
+  if(f_RED>=f[0][0] && f_RED<=f[0][1] && f_GREEN>=f[0][2] && f_GREEN<=f[0][3] && f_BLUE>=f[0][4] && f_BLUE<=f[0][5]){
     return 'w';
   }
-  else if(r>=f[1][0] && r<=f[1][1] && g>=f[1][2] && g<=f[1][3] && b>=f[1][4] && b<=f[1][5]){
+  else if(f_RED>=f[1][0] && f_RED<=f[1][1] && f_GREEN>=f[1][2] && f_GREEN<=f[1][3] && f_BLUE>=f[1][4] && f_BLUE<=f[1][5]){
     return 'y';
   }
-  else if(r>=f[2][0] && r<=f[2][1] && g>=f[2][2] && g<=f[2][3] && b>=f[2][4] && b<=f[2][5]){
+  else if(f_RED>=f[2][0] && f_RED<=f[2][1] && f_GREEN>=f[2][2] && f_GREEN<=f[2][3] && f_BLUE>=f[2][4] && f_BLUE<=f[2][5]){
     return 'o';
   }
-  else if(r>=f[3][0] && r<=f[3][1] && g>=f[3][2] && g<=f[3][3] && b>=f[3][4] && b<=f[3][5]){
+  else if(f_RED>=f[3][0] && f_RED<=f[3][1] && f_GREEN>=f[3][2] && f_GREEN<=f[3][3] && f_BLUE>=f[3][4] && f_BLUE<=f[3][5]){
     return 'r';
   }
-  else if(r>=f[4][0] && r<=f[4][1] && g>=f[4][2] && g<=f[4][3] && b>=f[4][4] && b<=f[4][5]){
+  else if(f_RED>=f[4][0] && f_RED<=f[4][1] && f_GREEN>=f[4][2] && f_GREEN<=f[4][3] && f_BLUE>=f[4][4] && f_BLUE<=f[4][5]){
     return 'g';
   }
-  else if(r>=f[5][0] && r<=f[5][1] && g>=f[5][2] && g<=f[5][3] && b>=f[5][4] && b<=f[5][5]){
+  else if(f_RED>=f[5][0] && f_RED<=f[5][1] && f_GREEN>=f[5][2] && f_GREEN<=f[5][3] && f_BLUE>=f[5][4] && f_BLUE<=f[5][5]){
     return 'b';
   }
   else {
@@ -744,13 +783,14 @@ char defineColor(byte r, byte g, byte b) {
 }
 
 
-//Function that repeats scanning up to 3 times if the color was not defined
+//Function that repeats scanning up to 10 times if the color was not defined
 char scanResult(){
   char color;
   byte wrongScan = 0;
   do{
     scan_item();
-    color = defineColor(f_RED, f_GREEN, f_BLUE);
+    //color = defineColor(f_RED, f_GREEN, f_BLUE);
+    color = defineColor();
     wrongScan++ ;
     if (color != 'X') { 
       break;
@@ -1160,12 +1200,32 @@ void virtualMove(char v_move) {
       break;
     }
   }
-  for (byte j = 0; j<20; j++) {
-    ScannedCube[pgm_read_byte(&(v_table[index][j]))] = CubeCopy[pgm_read_byte(&(v_table[index][j+20]))];
+  for (cubeCounter = 0; cubeCounter<20; cubeCounter++) {
+    ScannedCube[pgm_read_byte(&(v_table[index][cubeCounter]))] = CubeCopy[pgm_read_byte(&(v_table[index][cubeCounter+20]))];
   }
   Serial.print(F("Virtual move: "));
   Serial.println(v_move);
   copyCube();
+}
+
+
+void rotateY() {
+  for (byte j = 0; j<20; j++) {
+    ScannedCube[pgm_read_byte(&(v_table[0][j]))] = CubeCopy[pgm_read_byte(&(v_table[0][j+20]))];
+    ScannedCube[pgm_read_byte(&(v_table[9][j]))] = CubeCopy[pgm_read_byte(&(v_table[9][j+20]))];
+    if (j < 12) {
+      ScannedCube[pgm_read_byte(&(y_table[j]))] = CubeCopy[pgm_read_byte(&(y_table[j+12]))];
+    }
+  }
+  Serial.println(F("Rotate Y"));
+  copyCube();
+  defineSideColors();
+  if (yTurnCounter < 3) {
+    yTurnCounter ++;
+    }
+  else {
+    yTurnCounter = 0;
+  }
 }
 
 
@@ -1174,15 +1234,10 @@ void solveCube() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(F("Solving cube..."));
-  u_color = ScannedCube[4];
-  r_color = ScannedCube[13];
-  f_color = ScannedCube[22];
-  l_color = ScannedCube[40];
-  d_color = ScannedCube[31];
-  b_color = ScannedCube[49];
+  defineSideColors();
   solving_level = 1;
   stage_solving_step = 0;
-  while(solving_level != 2) {
+  while(solving_level != 3) {
     solveStage();
   }
   lcd.clear();
@@ -1191,6 +1246,16 @@ void solveCube() {
   lcd.setCursor(0, 1);
   lcd.print(F("successfully!"));
   delay(5000);
+}
+
+//Method for defining the cube side colors
+void defineSideColors() {
+  u_color = ScannedCube[4];
+  r_color = ScannedCube[13];
+  f_color = ScannedCube[22];
+  l_color = ScannedCube[40];
+  d_color = ScannedCube[31];
+  b_color = ScannedCube[49];
 }
 
 
@@ -1203,7 +1268,10 @@ void solveStage() {
     case 1:
       solveBottomCross();
       break;
-    
+
+    case 2:
+      solveF2L();
+      break;
     
   }
 }
@@ -1241,11 +1309,12 @@ void solveBottomCross() {
           }
           
           //else if ((ScannedCube[28] == f_color) && (ScannedCube[25] == d_color)) {          -----maybe to be deleted
+          //Check the front bottom edge and flip it if necessary
           else if (ScannedCube[25] == d_color) {
               virtualSequence(F("fDrd"));
           }
       }
-      
+      //Check the front-right edge and move it if necessary
       if (ScannedCube[23] == d_color) {
               if (ScannedCube[12] == r_color) {
                   virtualMove('r');
@@ -1254,7 +1323,7 @@ void solveBottomCross() {
                   virtualMove('R');
               }
           }
-          
+      //Check the front-left edge and move it if necessary    
       if (ScannedCube[21] == d_color) {
               if (ScannedCube[41] == l_color) {
                   virtualMove('L');
@@ -1263,7 +1332,7 @@ void solveBottomCross() {
                   virtualMove('l');
               }
           }
-        
+      //Check the front-up edge and flips it if necessary  
       if (ScannedCube[19] == d_color) {
               if (ScannedCube[7] == f_color) {
                   virtualSequence(F("RurF"));
@@ -1272,7 +1341,7 @@ void solveBottomCross() {
                   virtualMove('u');
               }
           }
-
+      //Check the front-up edge and moves it if necessary
       if (ScannedCube[7] == d_color) {
               if (ScannedCube[19] == f_color) {
                   virtualSequence(F("FF"));
@@ -1499,9 +1568,125 @@ void solveBottomCross() {
                   virtualSequence(F("UURR"));
                 }  
           }
-    
-    //Serial.print(F("Bottom cross solving stage: "));
-    //Serial.println(stage_solving_step);    
+
   }
+}
+
+//Method for solving the F2L
+void solveF2L() {
+   
+  boolean F2Lsolved = true;
+      //Check the current front-right corner. If it is solved, virtually rotate the cube to Y. If not solved - find a solution.
+      if (ScannedCube[29] == d_color && ScannedCube[23] == f_color && ScannedCube[26] == f_color && ScannedCube[12] == r_color && ScannedCube[15] == r_color) {
+        stage_solving_step ++;
+        rotateY();
+        Serial.print(F("F2L step solved: "));
+        Serial.println(stage_solving_step);
+      }
+      
+      else {
+         F2Lsolved = false;
+         prepareToF2LSolving();
+         defineF2Lsequence();
+        
+      }
+
+    if (F2Lsolved == true && stage_solving_step >= 4) {
+        solving_level = 3;
+        stage_solving_step = 0;
+        Serial.println(F("F2L solved"));
+    }
+  
+}
+
+void defineF2Lsequence() {
+  byte index;
+  //Counter for controlling the number of u-moves
+  byte uTurnCount = 0;
+  //Flag showing that solution was found
+  boolean f2lSequenceFound = false;
+  //Counter for finding the exact solution in solutions char string
+  byte f2lPointCounter = 0;
+  //Search for a solution. If solution was not found - make the u-turn
+  while (f2lSequenceFound == false && uTurnCount<4) {
+      for (index = 0; index <41; index++) {
+       if (ScannedCube[pgm_read_byte(&(f2l_t[index][0]))] == f_color && ScannedCube[pgm_read_byte(&(f2l_t[index][1]))] == f_color && 
+            ScannedCube[pgm_read_byte(&(f2l_t[index][2]))] == r_color && ScannedCube[pgm_read_byte(&(f2l_t[index][3]))] == r_color && 
+            ScannedCube[pgm_read_byte(&(f2l_t[index][4]))] == d_color) {
+              f2lSequenceFound = true;
+              break;
+            }
+        }
+      
+      if (f2lSequenceFound == false) {
+        virtualMove('u');
+        uTurnCount ++;
+      }
+  }
+
+  Serial.print(F("F2L sequence #: "));
+  Serial.println(index);
+  
+  //Find a solution string in solutions char array
+  if (index < 40 && uTurnCount < 4) {
+      for (int k = 0; k<500; k++) { 
+          //Find the current dot separator number
+          if (pgm_read_byte(&(f2l_solutions[k])) == '.') {
+            f2lPointCounter ++;
+            }
+          //Perform the move if the needed solution was obtained
+          if (f2lPointCounter == index && pgm_read_byte(&(f2l_solutions[k])) != '.') {
+            virtualMove(pgm_read_byte(&(f2l_solutions[k])));
+            }
+          //Stop as soon as the ending dot was found
+          else if (f2lPointCounter > index) {
+            break;
+            }
+          }
+       }   
+  else {
+     Serial.println(F("Error in F2L"));
+  }
+
+}
+
+//Method for checking the front-left, back-left and back-right corners. If the needed items are found there, move them to the upper level.
+void prepareToF2LSolving() {
+  boolean preparationF2LReady;
+  do {
+    preparationF2LReady = true;
+    if ((ScannedCube[21] == f_color && ScannedCube[41] == r_color) || (ScannedCube[21] == r_color && ScannedCube[41] == f_color) ||
+        (ScannedCube[44] == f_color && ScannedCube[24] == r_color && ScannedCube[27] == d_color) ||
+        (ScannedCube[44] == f_color && ScannedCube[24] == d_color && ScannedCube[27] == r_color) ||
+        (ScannedCube[44] == r_color && ScannedCube[24] == d_color && ScannedCube[27] == f_color) ||
+        (ScannedCube[44] == r_color && ScannedCube[24] == f_color && ScannedCube[27] == d_color) ||
+        (ScannedCube[44] == d_color && ScannedCube[24] == f_color && ScannedCube[27] == r_color) ||
+        (ScannedCube[44] == d_color && ScannedCube[24] == r_color && ScannedCube[27] == f_color)) {
+            preparationF2LReady = false;
+            virtualSequence(F("Fuf"));
+     }
+        
+    if ((ScannedCube[39] == f_color && ScannedCube[50] == r_color) || (ScannedCube[39] == r_color && ScannedCube[50] == f_color) ||
+        (ScannedCube[42] == f_color && ScannedCube[53] == r_color && ScannedCube[33] == d_color) ||
+        (ScannedCube[42] == f_color && ScannedCube[53] == d_color && ScannedCube[33] == r_color) ||
+        (ScannedCube[42] == r_color && ScannedCube[53] == d_color && ScannedCube[33] == f_color) ||
+        (ScannedCube[42] == r_color && ScannedCube[53] == f_color && ScannedCube[33] == d_color) ||
+        (ScannedCube[42] == d_color && ScannedCube[53] == f_color && ScannedCube[33] == r_color) ||
+        (ScannedCube[42] == d_color && ScannedCube[53] == r_color && ScannedCube[33] == f_color)) {
+            preparationF2LReady = false;
+            virtualSequence(F("buB"));
+     }
+  
+    if ((ScannedCube[14] == f_color && ScannedCube[48] == r_color) || (ScannedCube[14] == r_color && ScannedCube[48] == f_color) ||
+        (ScannedCube[17] == f_color && ScannedCube[51] == r_color && ScannedCube[35] == d_color) ||
+        (ScannedCube[17] == f_color && ScannedCube[51] == d_color && ScannedCube[35] == r_color) ||
+        (ScannedCube[17] == r_color && ScannedCube[51] == d_color && ScannedCube[35] == f_color) ||
+        (ScannedCube[17] == r_color && ScannedCube[51] == f_color && ScannedCube[35] == d_color) ||
+        (ScannedCube[17] == d_color && ScannedCube[51] == f_color && ScannedCube[35] == r_color) ||
+        (ScannedCube[17] == d_color && ScannedCube[51] == r_color && ScannedCube[35] == f_color)) {
+            preparationF2LReady = false;
+            virtualSequence(F("Bub"));
+     }
+  } while (preparationF2LReady == false);
 }
 
