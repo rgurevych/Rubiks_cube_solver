@@ -121,13 +121,25 @@ const byte oll_t [][8] PROGMEM = {
   {1, 3, 5, 6, 7, 8, 47, 45}, {1, 3, 5, 6, 7, 8, 36, 11}, {0, 1, 3, 5, 7, 8, 38, 45}, {1, 3, 5, 7, 36, 11, 38, 9}, {1, 3, 5, 7, 36, 38, 45, 20},
   {1, 3, 5, 6, 7, 47, 11, 20}, {1, 3, 5, 7, 8, 36, 45, 18}, {36, 37, 38, 46, 19, 9, 10, 11}, {36, 37, 38, 45, 46, 19, 20, 10}, {6, 37, 47, 46, 10, 11, 19, 20},
   {8, 36, 37, 46, 45, 18, 19, 10}, {0, 2, 46, 37, 38, 9, 10, 19}, {0, 2, 46, 37, 10, 18, 19, 20}, {0, 8, 46, 45, 37, 38, 10, 19}, {0, 2, 6, 8, 46, 37, 10, 19},
-  {0, 2, 3, 5, 6, 8, 46, 19}, {0, 1, 2, 3, 6, 8, 10, 19}
+  {0, 2, 3, 5, 6, 8, 46, 19}, {0, 1, 2, 3, 6, 8, 10, 19}, {3, 5, 47, 46, 9, 11, 18, 19}, {3, 5, 47, 46, 45, 38, 9, 19}, {3, 5, 36, 38, 46, 19, 9, 11},
+  {3, 5, 47, 46, 45, 18, 19, 20}, {2, 3, 5, 36, 46, 18, 19, 9}, {0, 3, 5, 46, 38, 11, 19, 20}, {2, 3, 5, 47, 46, 38, 19, 20}, {0, 3, 5, 46, 45, 18, 19, 9},
+  {2, 3, 5, 8, 36, 38, 46, 19}, {2, 3, 5, 8, 47, 46, 18, 19}, {6, 3, 5, 8, 36, 46, 11, 19}, {6, 3, 5, 8, 47, 46, 45, 19}, {0, 3, 5, 8, 46, 45, 38, 19},
+  {2, 3, 5, 6, 47, 46, 19, 9}, {1, 5, 47, 45, 37, 38, 19, 9}, {1, 5, 47, 37, 18, 19, 9, 11}, {1, 5, 36, 37, 38, 9, 11, 19}, {1, 5, 37, 47, 45, 18, 19, 20},
+  {1, 5, 36, 37, 38, 45, 19, 20}, {1, 5, 36, 37, 11, 18, 19, 20}, {1, 2, 5, 36, 37, 18, 19, 9}, {0, 1, 3, 38, 19, 20, 10, 11}, {1, 5, 6, 37, 47, 11, 19, 20},
+  {1, 3, 8, 36, 45, 18, 19, 10}, {1, 3, 6, 47, 19, 20, 10, 11}, {1, 5, 8, 36, 37, 45, 18, 19}, {1, 3, 6, 36, 45, 19, 9, 10}, {1, 5, 8, 37, 38, 47, 19, 11},
+  {0, 3, 6, 7, 46, 9, 10, 11}, {2, 5, 7, 8, 36, 37, 37, 46}, {0, 3, 6, 7, 46, 45, 10, 20}, {2, 5, 7, 8, 37, 47, 46, 18}, {1, 2, 3, 6, 47, 19, 9, 10},
+  {0, 1, 5, 8, 37, 38, 45, 19}, {0, 1, 3, 8, 38, 45, 19, 10}, {0, 1, 3, 8, 10, 11, 18, 19}, {0, 2, 5, 7, 37, 46, 18, 20}, {0, 2, 3, 7, 46, 18, 20, 10},
+  {0, 2, 5, 7, 37, 38, 46, 9}, {0, 2, 3, 7, 38, 46, 9, 10}
   };
 
 //OLL solutions
 const char oll_solutions [] PROGMEM =
   "RRdRUUrDRUUR.RURDruRdRR.RRdRurDRUR.RUrURurURUUr.RUURRuRRuRRUUR.RUrURUUr.luLulUUL.RUbRBRRurFRf.BlbLUllflFul.RUBubrBLUlub.RUBubrbruRUB.rUUFRUruFFUUFR"
-  ".BlbLUUlubUBllul.RUrUrFRfUUrFRf.fBulULULUluFb.RUruLrFRfl.LFrflRURur"
+  ".BlbLUUlubUBllul.RUrUrFRfUUrFRf.fBulULULUluFb.RUruLrFRfl.LFrflRURur.FURurURurf.BUbUBuLulb.rFRfUURurUfUUF.FUUFFuFufUULFl.lBLUlubLulUUL.rfRluLUrFR.BULUUluLUlb"
+  ".lBLUlbLBub.FRUruf.RUrurFRf.RURRurFRURuf.bubRBrUB.rFRUrufUR.LfluLUFul.LFUfuFUful.fluLUluLUF.LFrFRfrFRFFl.LFUfuFufUFUfl.LfllBllFllbL"
+  ".fRUUrUUrFFRf.LFFrfRfl.rFFLFlFR.LUlUlBLbLUUl.RUrurFRRUruf.LFrFRFFL.rfLflFFR.BLUlubUBLUlub.LrFRFrFRFFrFlR.burURB.BULulb.luBULulbL"
+  ".RUburURBr.RUrURururFRf.LUlUUbuBuLul.LUUllBLbLUUl.FrfRURur.RurUURUBubur.lULUUlubUBUL.RRUrbRuRRURBr.rBLbLUUlubuB."
+  ;
 
 //Variables and counters for solving steps
 byte solving_level;
@@ -1237,7 +1249,7 @@ void solveCube() {
   defineSideColors();
   solving_level = 1;
   stage_solving_step = 0;
-  while(solving_level != 3) {
+  while(solving_level != 4) {
     solveStage();
   }
   lcd.clear();
@@ -1271,6 +1283,10 @@ void solveStage() {
 
     case 2:
       solveF2L();
+      break;
+
+    case 3:
+      solveOLL();
       break;
     
   }
@@ -1688,5 +1704,73 @@ void prepareToF2LSolving() {
             virtualSequence(F("Bub"));
      }
   } while (preparationF2LReady == false);
+}
+
+
+//Method for solving the OLL
+void solveOLL() {
+   //Check that last layer is already solved. If it is solved, complete the step. If not solved - find a solution.
+  if (ScannedCube[0] == u_color && ScannedCube[1] == u_color && ScannedCube[2] == u_color && ScannedCube[3] == u_color && ScannedCube[5] == u_color
+       && ScannedCube[6] == u_color && ScannedCube[7] == u_color && ScannedCube[8] == u_color) {
+        solving_level = 4;
+        Serial.print(F("OLL solved"));
+   }
+      
+   else {
+       defineOLLsequence(); 
+   }
+}
+
+//Method for defining the OLL solution sequence
+void defineOLLsequence() {
+  byte index;
+  //Counter for controlling the number of u-moves
+  byte uTurnCount = 0;
+  //Flag showing that solution was found
+  boolean ollSequenceFound = false;
+  //Counter for finding the exact solution in solutions char string
+  byte ollPointCounter = 0;
+  //Search for a solution. If solution was not found - make the u-turn
+  while (ollSequenceFound == false && uTurnCount<4) {
+     for (index = 0; index <57; index++) {
+       if (ScannedCube[pgm_read_byte(&(oll_t[index][0]))] == u_color && ScannedCube[pgm_read_byte(&(oll_t[index][1]))] == u_color && 
+           ScannedCube[pgm_read_byte(&(oll_t[index][2]))] == u_color && ScannedCube[pgm_read_byte(&(oll_t[index][3]))] == u_color && 
+           ScannedCube[pgm_read_byte(&(oll_t[index][4]))] == u_color && ScannedCube[pgm_read_byte(&(oll_t[index][5]))] == u_color &&
+           ScannedCube[pgm_read_byte(&(oll_t[index][6]))] == u_color && ScannedCube[pgm_read_byte(&(oll_t[index][7]))] == u_color) {
+              ollSequenceFound = true;
+              break;
+            }
+        }
+      
+      if (ollSequenceFound == false) {
+        virtualMove('u');
+        uTurnCount ++;
+      }
+  }
+
+  Serial.print(F("OLL sequence #: "));
+  Serial.println(index);
+  
+  //Find a solution string in solutions char array
+  if (index < 57 && uTurnCount < 4) {
+      for (int k = 0; k<1000; k++) { 
+          //Find the current dot separator number
+          if (pgm_read_byte(&(oll_solutions[k])) == '.') {
+            ollPointCounter ++;
+            }
+          //Perform the move if the needed solution was obtained
+          if (ollPointCounter == index && pgm_read_byte(&(oll_solutions[k])) != '.') {
+            virtualMove(pgm_read_byte(&(oll_solutions[k])));
+            }
+          //Stop as soon as the ending dot was found
+          else if (ollPointCounter > index) {
+            break;
+            }
+          }
+       }   
+  else {
+     Serial.println(F("Error in OLL"));
+  }
+
 }
 
