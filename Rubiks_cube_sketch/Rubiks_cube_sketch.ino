@@ -138,7 +138,25 @@ const char oll_solutions [] PROGMEM =
   ".BlbLUUlubUBllul.RUrUrFRfUUrFRf.fBulULULUluFb.RUruLrFRfl.LFrflRURur.FURurURurf.BUbUBuLulb.rFRfUURurUfUUF.FUUFFuFufUULFl.lBLUlubLulUUL.rfRluLUrFR.BULUUluLUlb"
   ".lBLUlbLBub.FRUruf.RUrurFRf.RURRurFRURuf.bubRBrUB.rFRUrufUR.LfluLUFul.LFUfuFUful.fluLUluLUF.LFrFRfrFRFFl.LFUfuFufUFUfl.LfllBllFllbL"
   ".fRUUrUUrFFRf.LFFrfRfl.rFFLFlFR.LUlUlBLbLUUl.RUrurFRRUruf.LFrFRFFL.rfLflFFR.BLUlubUBLUlub.LrFRFrFRFFrFlR.burURB.BULulb.luBULulbL"
-  ".RUburURBr.RUrURururFRf.LUlUUbuBuLul.LUUllBLbLUUl.FrfRURur.RurUURUBubur.lULUUlubUBUL.RRUrbRuRRURBr.rBLbLUUlubuB."
+  ".RUburURBr.RUrURururFRf.LUlUUbuBuLul.LUUllBLbLUUl.FrfRURur.RurUURUBubur.lULUUlubUBUL.RRUrbRuRRURBr.lBLbLUUlubuB."
+  ;
+
+//Table for PLL step possible patterns
+const byte pll_t [][12] PROGMEM = {
+  {36, 46, 20, 18, 19, 11, 37, 38, 9, 47, 45, 10}, {37, 38, 45, 36, 10, 20, 47, 18, 19, 46, 9, 11}, {45, 10, 20, 37, 47, 18, 38, 46, 9, 36, 19, 11},
+  {37, 47, 45, 18, 20, 10, 36, 38, 46, 19, 11, 9}, {47, 45, 19, 18, 20, 46, 36, 38, 10, 37, 9, 11}, {37, 18, 20, 47, 46, 45, 19, 11, 9, 36, 38, 10},
+  {18, 20, 10, 47, 46, 45, 37, 11, 9, 36, 38, 19}, {47, 46, 9, 18, 11, 10, 36, 37, 38, 45, 19, 20}, {18, 19, 11, 47, 9, 10, 36, 37, 38, 46, 45, 20},
+  {36, 46, 11, 18, 20, 10, 37, 38, 45, 47, 19, 9}, {37, 18, 20, 36, 46, 11, 47, 9, 10, 45, 38, 19}, {47, 46, 9, 18, 19, 11, 36, 38, 10, 37, 45, 20},
+  {37, 45, 20, 47, 18, 19, 38, 46, 9, 36, 10, 11}, {45, 10, 20, 36, 37, 38, 47, 19, 9, 18, 46, 11}, {45, 10, 20, 47, 18, 19, 37, 38, 9, 36, 46, 11},
+  {47, 46, 18, 45, 19, 20, 36, 11, 10, 37, 38, 9}, {46, 45, 20, 47, 18, 19, 38, 10, 9, 36, 37, 11}, {38, 45, 10, 36, 46, 20, 47, 18, 19, 37, 11, 9},
+  {38, 46, 9, 37, 47, 45, 18, 19, 11, 36, 10, 20}, {37, 47, 9, 46, 11, 18, 36, 38, 10, 45, 19, 20}, {38, 46, 9, 47, 45, 10, 37, 18, 11, 36, 19, 20}
+  };
+
+//PLL solutions
+const char pll_solutions [] PROGMEM =
+  "rFrBBRfrBBRR.RRBBRFrBBRfR.rurdRurDRUrdRUrDRR.fuFuFUFufUFUFFufUU.RRllDRRllDDRRLLDRRll.RuRURURuruRR.RRURUrururUr.RUUruRUUlUruL.urUlUURurUURL.URRFRURurfRUUrUUR"
+  ".LUUlUULfluLULFllU.RUrurFRRuruRUrf.FRuruRUrfRUrurFRf.urURuRRfuFURFrfRR.rUURUULurUlULuRUl.RuLUUrUlRuLUUrUlu.rURurfuFRUrFrfRuR.RRFFRUURUUrFRUrurFRR"
+  ".RRfRURurfRUUrUUrFFRR.LLFFlUUlUULfluLULfll.fuFRRDbUBuBdRR."
   ;
 
 //Variables and counters for solving steps
@@ -289,7 +307,7 @@ void arduinoSolveOperation() {
   //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   detachInterrupt(0);
   copyCube();
-  virtualSequence(F("RDURL"));  //"RDURL"
+  virtualSequence(F("RDURLudbrFuDlUUbRR"));  //"RDURL"
   solveCube();
   assembleCube(SolvedCube);
   detachInterrupt(0);
@@ -1249,15 +1267,10 @@ void solveCube() {
   defineSideColors();
   solving_level = 1;
   stage_solving_step = 0;
-  while(solving_level != 4) {
+  while(solving_level != 8) {
     solveStage();
   }
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(F("Cube solved"));
-  lcd.setCursor(0, 1);
-  lcd.print(F("successfully!"));
-  delay(5000);
+  
 }
 
 //Method for defining the cube side colors
@@ -1288,7 +1301,28 @@ void solveStage() {
     case 3:
       solveOLL();
       break;
-    
+
+    case 4:
+      solvePLL();
+      break;
+
+    case 5:
+      solveTLL();
+      break;
+
+    case 6:
+      storeLCD(F("Cube solved"), 0);
+      storeLCD(F("successfully!"), 1);
+      delay(3000);
+      solving_level = 8;
+      break;
+
+    case 7:
+      storeLCD(F("Solving error"), 0);
+      storeLCD(F("Check code"), 1);
+      delay(3000);
+      solving_level = 8;
+      break;
   }
 }
 
@@ -1662,6 +1696,7 @@ void defineF2Lsequence() {
        }   
   else {
      Serial.println(F("Error in F2L"));
+     solving_level = 7;
   }
 
 }
@@ -1713,7 +1748,7 @@ void solveOLL() {
   if (ScannedCube[0] == u_color && ScannedCube[1] == u_color && ScannedCube[2] == u_color && ScannedCube[3] == u_color && ScannedCube[5] == u_color
        && ScannedCube[6] == u_color && ScannedCube[7] == u_color && ScannedCube[8] == u_color) {
         solving_level = 4;
-        Serial.print(F("OLL solved"));
+        Serial.println(F("OLL solved"));
    }
       
    else {
@@ -1770,6 +1805,112 @@ void defineOLLsequence() {
        }   
   else {
      Serial.println(F("Error in OLL"));
+     solving_level = 7;
+  }
+
+}
+
+
+//Method for solving the PLL
+void solvePLL() {
+   //Check that last layer permutations are already solved. If it is solved, complete the step. If not solved - find a solution.
+  if (ScannedCube[36] == ScannedCube[37] && ScannedCube[36] == ScannedCube[38] && ScannedCube[37] == ScannedCube[38] &&
+      ScannedCube[47] == ScannedCube[46] && ScannedCube[47] == ScannedCube[45] && ScannedCube[46] == ScannedCube[45] &&
+      ScannedCube[11] == ScannedCube[10] && ScannedCube[11] == ScannedCube[9] && ScannedCube[10] == ScannedCube[9] &&
+      ScannedCube[18] == ScannedCube[19] && ScannedCube[18] == ScannedCube[20] && ScannedCube[19] == ScannedCube[20]) {
+        solving_level = 5;
+        Serial.println(F("PLL solved"));
+   }
+      
+   else {
+       definePLLsequence(); 
+   }
+}
+
+//Method for defining the PLL solution sequence
+void definePLLsequence() {
+  byte index;
+  //Counter for controlling the number of u-moves
+  byte uTurnCount = 0;
+  //Flag showing that solution was found
+  boolean pllSequenceFound = false;
+  //Counter for finding the exact solution in solutions char string
+  byte pllPointCounter = 0;
+  //Search for a solution. If solution was not found - make the u-turn
+  while (pllSequenceFound == false && uTurnCount<4) {
+     for (index = 0; index <21; index++) {
+       if (ScannedCube[pgm_read_byte(&(pll_t[index][0]))] == ScannedCube[pgm_read_byte(&(pll_t[index][1]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][0]))] == ScannedCube[pgm_read_byte(&(pll_t[index][2]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][1]))] == ScannedCube[pgm_read_byte(&(pll_t[index][2]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][3]))] == ScannedCube[pgm_read_byte(&(pll_t[index][4]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][3]))] == ScannedCube[pgm_read_byte(&(pll_t[index][5]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][4]))] == ScannedCube[pgm_read_byte(&(pll_t[index][5]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][6]))] == ScannedCube[pgm_read_byte(&(pll_t[index][7]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][6]))] == ScannedCube[pgm_read_byte(&(pll_t[index][8]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][7]))] == ScannedCube[pgm_read_byte(&(pll_t[index][8]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][9]))] == ScannedCube[pgm_read_byte(&(pll_t[index][10]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][9]))] == ScannedCube[pgm_read_byte(&(pll_t[index][11]))] &&
+           ScannedCube[pgm_read_byte(&(pll_t[index][10]))] == ScannedCube[pgm_read_byte(&(pll_t[index][11]))]) {
+              pllSequenceFound = true;
+              break;
+            }
+        }
+      
+      if (pllSequenceFound == false) {
+        virtualMove('u');
+        uTurnCount ++;
+      }
+  }
+
+  Serial.print(F("PLL sequence #: "));
+  Serial.println(index);
+  
+  //Find a solution string in solutions char array
+  if (index < 21 && uTurnCount < 4) {
+      for (int k = 0; k<500; k++) { 
+          //Find the current dot separator number
+          if (pgm_read_byte(&(pll_solutions[k])) == '.') {
+            pllPointCounter ++;
+            }
+          //Perform the move if the needed solution was obtained
+          if (pllPointCounter == index && pgm_read_byte(&(pll_solutions[k])) != '.') {
+            virtualMove(pgm_read_byte(&(pll_solutions[k])));
+            }
+          //Stop as soon as the ending dot was found
+          else if (pllPointCounter > index) {
+            break;
+            }
+          }
+       }   
+  else {
+     Serial.println(F("Error in PLL"));
+     solving_level = 7;
+  }
+
+}
+
+
+void solveTLL() {
+  //Check if the upper level is rotated correctly. If not - turn it.
+  if (ScannedCube[10] == r_color && ScannedCube[19] == f_color && ScannedCube[37] == l_color && ScannedCube[46] == b_color) {
+    Serial.println(F("Last level rotated"));
+    solving_level = 6;
+    }
+  else {
+    if (ScannedCube[19] == r_color) {
+      virtualMove('u');
+    }
+    else if (ScannedCube[19] == l_color) {
+      virtualMove('U');
+    }
+    else if (ScannedCube[19] == b_color) {
+      virtualMove('U');
+      virtualMove('U');
+    }
+    else {
+      Serial.println(F("Error in TLL"));
+      solving_level = 7;
+    }
   }
 
 }
