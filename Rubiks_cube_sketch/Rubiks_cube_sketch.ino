@@ -100,6 +100,12 @@ const byte y_table[24] PROGMEM = {21, 22, 23, 12, 13, 14, 48, 49, 50, 39, 40, 41
 //Counter of Y turns
 byte yTurnCounter = 0;
 
+//Map for transferring the virtual move to physical move depending on Y-turn counter
+const byte y_map[32] PROGMEM = {'F', 'f', 'R', 'r', 'B', 'b', 'L', 'l', 
+                                'R', 'r', 'B', 'b', 'L', 'l', 'F', 'f', 
+                                'B', 'b', 'L', 'l', 'F', 'f', 'R', 'r',
+                                'L', 'l', 'F', 'f', 'R', 'r', 'B', 'b'};
+
 //Table for F2L step possible patterns
 const byte f2l_t [][5] PROGMEM = {
   {19, 20, 7, 8, 9}, {5, 8, 9, 10, 20}, {8, 37, 9, 3, 20}, {20, 1, 8, 46, 9}, {20, 37, 8, 3, 9}, {8, 1, 9, 46, 20}, {20, 46, 8, 1, 9}, {8, 3, 9, 37, 20},
@@ -307,6 +313,7 @@ void arduinoSolveOperation() {
   //scanCube();  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   detachInterrupt(0);
   copyCube();
+  SolvedCube = "";
   virtualSequence(F("RDURLudbrFuDlUUbRR"));  //"RDURL"
   solveCube();
   assembleCube(SolvedCube);
@@ -1233,9 +1240,14 @@ void virtualMove(char v_move) {
   for (cubeCounter = 0; cubeCounter<20; cubeCounter++) {
     ScannedCube[pgm_read_byte(&(v_table[index][cubeCounter]))] = CubeCopy[pgm_read_byte(&(v_table[index][cubeCounter+20]))];
   }
+  
   Serial.print(F("Virtual move: "));
   Serial.println(v_move);
+  
+  addMove(v_move);
+  
   copyCube();
+  
 }
 
 
@@ -1255,6 +1267,30 @@ void rotateY() {
     }
   else {
     yTurnCounter = 0;
+  }
+}
+
+
+//Method for adding the physical move to the solution string
+void addMove(char p_move) {
+  if (yTurnCounter == 0) {
+    SolvedCube += p_move;
+    }
+  else {
+    if (p_move == 'u' || p_move == 'U' || p_move == 'd' || p_move == 'D') {
+      SolvedCube += p_move;
+    }
+    else {
+    byte index;
+    for (index = 0; index <8; index++) {
+      if (p_move == pgm_read_byte(&(y_map[index]))) {
+      break;
+      }
+    }
+    SolvedCube += char(pgm_read_byte(&(y_map[index + 8 * yTurnCounter])));
+    Serial.print(F("Physical move: "));
+    Serial.println(char(pgm_read_byte(&(y_map[index + 8 * yTurnCounter]))));
+    }
   }
 }
 
@@ -1311,6 +1347,7 @@ void solveStage() {
       break;
 
     case 6:
+      Serial.println(SolvedCube);
       storeLCD(F("Cube solved"), 0);
       storeLCD(F("successfully!"), 1);
       delay(3000);
@@ -1358,7 +1395,7 @@ void solveBottomCross() {
               }
           }
           
-          //else if ((ScannedCube[28] == f_color) && (ScannedCube[25] == d_color)) {          -----maybe to be deleted
+          
           //Check the front bottom edge and flip it if necessary
           else if (ScannedCube[25] == d_color) {
               virtualSequence(F("fDrd"));
@@ -1429,7 +1466,7 @@ void solveBottomCross() {
               }
           }
           
-          //else if ((ScannedCube[32] == r_color) && (ScannedCube[16] == d_color)) {    ---------------------
+          
           else if (ScannedCube[16] == d_color) {
               virtualSequence(F("rDbd"));
           }
@@ -1499,7 +1536,7 @@ void solveBottomCross() {
               }
           }
           
-          //else if ((ScannedCube[34] == b_color) && (ScannedCube[52] == d_color)) {              ------------------------
+          
           else if (ScannedCube[52] == d_color) {
               virtualSequence(F("bDld"));
           }
@@ -1569,7 +1606,7 @@ void solveBottomCross() {
               }
           }
           
-          //else if ((ScannedCube[30] == l_color) && (ScannedCube[43] == d_color)) {               ------------------------
+          
           else if (ScannedCube[43] == d_color) {
               virtualSequence(F("lDfd"));
           }
